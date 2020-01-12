@@ -1,0 +1,50 @@
+project lexer "Lexer" 2020-01-13 - 2020-02-03 {
+
+  # show only date
+  timeformat "%Y-%m-%d"
+
+  now 2020-01-13
+
+  extend task {
+    richtext Description "Description" # nice to have
+  }
+}
+
+shift off "not working" {
+  workinghours sun - sat off
+}
+
+resource staff "Staff Members" {
+
+  resource filipe "Filipe" {
+    email "filipelbc@gmail.com"
+  }
+}
+
+task prototype_lexer "Prototype lexer" {
+  effort 7h
+  allocate filipe
+  Description -8<-
+  Prototype the lexer.
+
+  Trick task
+  ->8-
+}
+
+textreport main "" {
+
+  textreport overview "overview" {
+    formats html
+    title "Overview"
+    center '<[report id="overview"]>'
+  }
+}
+
+taskreport overview "" {
+  headline "Overview"
+  columns id,
+    effort,
+    chart {scale day width 1000}
+  hideresource ~isleaf()
+  loadunit hours
+}
