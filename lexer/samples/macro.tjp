@@ -1,0 +1,24 @@
+foo {
+  bar
+}
+
+macro my_macro [ wololo ]
+
+foo ${my_macro} "bar"
+
+macro my_macro2 [
+  with ${1} "value"
+  ignore # comment
+  second "arg" ${2}
+  macro internal [
+    ${1} bar
+  ]
+
+  ${internal "wow"}
+]
+
+foo2 ${my_macro "name" "\"string\""} "bar2"
+
+macro my_macro [ wololo ${1} ]
+
+override ${my_macro "foo"} "bar"
