@@ -122,12 +122,14 @@ class Lexer:
     class Mode:
         DEFAULT = 1
         MULTILINE_STRING = 2
+        MACRO_DEFINITION = 3
 
     POSSIBLE_TOKENS = {
         Mode.DEFAULT: [
             tokens.SharpComment,
             tokens.String,
             tokens.MultilineStringStart,
+            tokens.MacroDefinitionStart,
             tokens.Name,
             tokens.PositiveInteger,
             tokens.EndOfLine,
@@ -138,12 +140,18 @@ class Lexer:
             tokens.MultilineStringEnd,
             tokens.WholeLine,
         ],
+        Mode.MACRO_DEFINITION: [
+            tokens.MacroDefinitionEnd,
+            tokens.SharpComment,
+            tokens.MacroContent,
+        ],
     }
 
     def __init__(self, source):
         self.line_stream = LineStream(source)
         self.line_tokenizer = LineTokenizer()
         self.set_mode(self.Mode.DEFAULT)
+        self.macros = dict()
 
     def set_mode(self, mode):
         self.mode = mode
@@ -172,6 +180,23 @@ class Lexer:
 
                 self.set_mode(self.Mode.DEFAULT)
                 token = tokens.MultilineString(raw_lines)
+
+            elif isinstance(token, tokens.MacroDefinitionStart):
+                self.set_mode(self.Mode.MACRO_DEFINITION)
+
+                macro_name = token.value
+
+                raw_lines = []
+                (token, _) = next(self)
+                while not isinstance(token, tokens.MacroDefinitionEnd):
+                    if token.value:
+                        raw_lines.append(token.value)
+                    (token, _) = next(self)
+
+                self.macros[macro_name] = ''.join(raw_lines)
+
+                self.set_mode(self.Mode.DEFAULT)
+                return next(self)
 
         return (token, location)
 

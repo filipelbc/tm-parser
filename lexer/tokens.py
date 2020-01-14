@@ -1,4 +1,5 @@
 import json
+import re
 from textwrap import dedent
 
 
@@ -218,3 +219,57 @@ class Other(BaseTokenWithPattern):
     Matches any single character.
     """
     pattern = r'.'
+
+
+class MacroDefinitionStart(BaseTokenWithPattern):
+    """
+    Matches the start of a macro defition. It must happen at the begining of a
+    line (i.e. match only happens at position 0), although whitespace is not
+    considered.
+
+    >>> import re; This = MacroDefinitionStart
+    >>> p = re.compile(This.pattern)
+    >>> p.match(" macro foo [", 0)
+    <_sre.SRE_Match object; span=(0, 12), match=' macro foo ['>
+
+    >>> p.match(" macro foo [", 1)
+
+    >>> print(This("macro foo ["))
+    MacroDefinitionStart('foo')
+    """
+    pattern = r'^\s*macro\s+([a-zA-Z_]\w*)\s+\['
+
+    @classmethod
+    def process(cls, value):
+        return re.match(cls.pattern, value).group(1)
+
+
+class MacroDefinitionEnd(BaseTokenWithPattern):
+    """
+    >>> import re; This = MacroDefinitionEnd
+    >>> re.match(This.pattern, "] \\n")
+    <_sre.SRE_Match object; span=(0, 3), match='] \\n'>
+    """
+    pattern = r']\s+'
+
+    @classmethod
+    def process(cls, value):
+        return None
+
+
+class MacroContent(BaseTokenWithPattern):
+    """
+    Matches everything up to the beggining of a SharpComment or
+    MacroDefinitionEnd.
+
+    >>> import re; This = MacroContent
+    >>> re.match(This.pattern, "foo bar ]")
+    <_sre.SRE_Match object; span=(0, 8), match='foo bar '>
+
+    >>> re.match(This.pattern, "foo bar #c")
+    <_sre.SRE_Match object; span=(0, 8), match='foo bar '>
+
+    >>> re.match(This.pattern, "foo bar \\n")
+    <_sre.SRE_Match object; span=(0, 9), match='foo bar \\n'>
+    """
+    pattern = r'[^\]#]+'
