@@ -70,7 +70,7 @@ class SharpComment(BaseTokenWithPattern):
         return 'Comment'
 
     @staticmethod
-    def process(self):
+    def process(value):
         return None
 
 
@@ -163,14 +163,17 @@ class MultilineStringEnd(BaseTokenWithPattern):
 
 class WholeLine(BaseTokenWithPattern):
     """
-    Matches a whole line. Useful for handling the contents of a multiline
+    Matches everything next. Useful for handling the contents of a multiline
     string.
 
     >>> import re; This = WholeLine
     >>> re.match(This.pattern, "foo bar \\n")
     <_sre.SRE_Match object; span=(0, 9), match='foo bar \\n'>
+
+    >>> re.match(This.pattern, "\\n")
+    <_sre.SRE_Match object; span=(0, 1), match='\\n'>
     """
-    pattern = r'(.|\n)*$'
+    pattern = r'(.|\n)+$'
 
 
 class Name(BaseTokenWithPattern):
