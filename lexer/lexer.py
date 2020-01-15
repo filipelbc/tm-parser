@@ -1,11 +1,10 @@
 import sys
-import re
 
-from copy import copy
 from pathlib import Path
 from io import StringIO
 
 import tokens
+from tokenizer import Tokenizer
 from utils import UntilNoneIterator
 
 
@@ -29,6 +28,12 @@ class Location:
                                    self.path,
                                    self.line_num,
                                    self.column)
+
+    def move_to(self, column):
+        """
+        Creates a copy of the location, but uses the new column.
+        """
+        return Location(self.path, self.line_num, column)
 
 
 class LineStream:
@@ -54,60 +59,6 @@ class LineStream:
             return None
         self.line_num += 1
         return (line, Location(self.path, self.line_num))
-
-    def __iter__(self):
-        return UntilNoneIterator(self)
-
-
-class LineTokenizer:
-    """
-    Provider an interface for tokenizing a line, producing a stream of tokens.
-    Tokens are returned with their corresponding location.
-
-    At each iteration, the list of possible tokens can be changed.
-
-    >>> from tokens import Name, String, EndOfLine, WhiteSpace
-    >>> lt = LineTokenizer()
-    >>> lt.set_line('bar "wololo"\\n', Location(None, 1))
-    >>> lt.set_possible_tokens([Name, String, EndOfLine, WhiteSpace])
-    >>> for t, l in lt: print(t, l)
-    Name('bar') Location(None, 1, 0)
-    WhiteSpace(' ') Location(None, 1, 3)
-    String('wololo') Location(None, 1, 4)
-    EndOfLine('\\n') Location(None, 1, 12)
-    """
-
-    def __init__(self):
-        self.line = ""
-        self.location = Location(None, 0)
-        self.set_possible_tokens([])
-
-    def __bool__(self):
-        return len(self.line) > self.location.column
-
-    def __next__(self):
-        location = copy(self.location)
-        m = self._pattern.match(self.line, location.column)
-        if not m:
-            return None
-
-        kind = m.lastgroup
-        value = m.group()
-        self.location.column += len(value)
-
-        token_class = getattr(tokens, kind)
-        return (token_class(value), location)
-
-    def set_line(self, line, location):
-        self.line = line
-        self.location = location
-
-    def set_possible_tokens(self, possible_tokens):
-        patterns = [
-            '(?P<%s>%s)' % (t.__name__, t.pattern)
-            for t in possible_tokens
-        ]
-        self._pattern = re.compile('|'.join(patterns))
 
     def __iter__(self):
         return UntilNoneIterator(self)
@@ -149,24 +100,26 @@ class Lexer:
 
     def __init__(self, source):
         self.line_stream = LineStream(source)
-        self.line_tokenizer = LineTokenizer()
+        self.tokenizer = Tokenizer()
         self.set_mode(self.Mode.DEFAULT)
         self.macros = dict()
 
     def set_mode(self, mode):
         self.mode = mode
-        self.line_tokenizer.set_possible_tokens(self.POSSIBLE_TOKENS[mode])
+        self.tokenizer.set_possible_tokens(self.POSSIBLE_TOKENS[mode])
 
     def __next__(self):
-        if not self.line_tokenizer:
+        if not self.tokenizer:
             line_info = next(self.line_stream)
             if line_info is None:
                 if self.mode != self.Mode.DEFAULT:
-                    raise UnexpectedEndOfInput(self.line_tokenizer.location)
+                    raise UnexpectedEndOfInput()
                 return None
-            self.line_tokenizer.set_line(*line_info)
+            (line, self._location) = line_info
+            self.tokenizer.set_string(line)
 
-        (token, location) = next(self.line_tokenizer)
+        (token, column) = next(self.tokenizer)
+        self._location = self._location.move_to(column)
 
         if self.mode == self.Mode.DEFAULT:
             if isinstance(token, tokens.MultilineStringStart):
@@ -198,7 +151,7 @@ class Lexer:
                 self.set_mode(self.Mode.DEFAULT)
                 return next(self)
 
-        return (token, location)
+        return (token, self._location)
 
     def __iter__(self):
         return UntilNoneIterator(self)
