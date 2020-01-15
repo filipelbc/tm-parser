@@ -74,6 +74,8 @@ class Lexer:
         DEFAULT = 1
         MULTILINE_STRING = 2
         MACRO_DEFINITION = 3
+        MACRO_DETECTION = 4
+        MACRO_EXPANSION = 5
 
     POSSIBLE_TOKENS = {
         Mode.DEFAULT: [
@@ -96,6 +98,19 @@ class Lexer:
             tokens.SharpComment,
             tokens.MacroContent,
         ],
+        Mode.MACRO_DETECTION: [
+            tokens.MacroCallStart,
+            tokens.NonMacroCall,
+            tokens.EndOfLine,
+        ],
+        Mode.MACRO_EXPANSION: [
+            tokens.String,
+            tokens.MultilineString,
+            tokens.WhiteSpace,
+            tokens.EndOfLine,
+            tokens.SharpComment,
+            tokens.MacroCallEnd,
+        ]
     }
 
     def __init__(self, source):

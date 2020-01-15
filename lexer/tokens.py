@@ -276,3 +276,86 @@ class MacroContent(BaseTokenWithPattern):
     <_sre.SRE_Match object; span=(0, 9), match='foo bar \\n'>
     """
     pattern = r'[^\]#]+'
+
+
+class MacroCallStart(BaseTokenWithPattern):
+    """
+    Matches the start of a macro call.
+
+    >>> import re; This = MacroCallStart
+    >>> re.match(This.pattern, "${foo ")
+    <_sre.SRE_Match object; span=(0, 5), match='${foo'>
+
+    >>> re.match(This.pattern, "${foo}")
+    <_sre.SRE_Match object; span=(0, 5), match='${foo'>
+
+    >>> re.match(This.pattern, "${?foo ")
+    <_sre.SRE_Match object; span=(0, 6), match='${?foo'>
+
+    >>> re.match(This.pattern, "${?foo}")
+    <_sre.SRE_Match object; span=(0, 6), match='${?foo'>
+
+    >>> re.match(This.pattern, "${1}")
+    <_sre.SRE_Match object; span=(0, 3), match='${1'>
+
+    >>> re.match(This.pattern, "${1 ")
+    <_sre.SRE_Match object; span=(0, 3), match='${1'>
+
+    >>> re.match(This.pattern, "${1.")
+
+    >>> re.match(This.pattern, "${?1 ")
+
+    >>> re.match(This.pattern, "$${1}")
+
+    >>> print(This("${foo "))
+    MacroCallStart(('foo ', False))
+
+    >>> print(This("${?foo "))
+    MacroCallStart(('foo ', True))
+
+    >>> print(This("${1 "))
+    MacroCallStart(('1 ', False))
+    """
+    pattern = r'\${(\??[a-zA-Z_]\w*|\d+)(?=(\s|}))'
+
+    @staticmethod
+    def process(value):
+        """
+        The processed value of this token is a tuple of
+        - macro name
+        - optional call flag
+        """
+        name = value[2:]
+        if name[0] == '?':
+            return (name[1:], True)
+        return (name, False)
+
+
+class NonMacroCall(BaseTokenWithPattern):
+    """
+    Matches anything up to a MacroCallStart.
+
+    >>> import re; This = NonMacroCall
+    >>> re.match(This.pattern, "foo ${bar ")
+    <_sre.SRE_Match object; span=(0, 4), match='foo '>
+
+    >>> re.match(This.pattern, "foo ${bar ${bin")
+    <_sre.SRE_Match object; span=(0, 4), match='foo '>
+
+    >>> re.match(This.pattern, "foo bar\\n")
+    <_sre.SRE_Match object; span=(0, 7), match='foo bar'>
+
+    >>> re.match(This.pattern, "${bar foo")
+    """
+    pattern = r'(.|\n)+?(?=(' + MacroCallStart.pattern + r'|\n))'
+
+
+class MacroCallEnd(BaseTokenWithPattern):
+    """
+    Matches the end of a macro call.
+    """
+    pattern = r'}'
+
+    @staticmethod
+    def process(value):
+        return None
