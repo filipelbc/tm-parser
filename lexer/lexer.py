@@ -89,7 +89,6 @@ MODE_TOKENS = {
         # tokens.SharpComment,
         # tokens.String,
         # tokens.MultilineStringStart,
-        tokens.MacroDefinitionStart,
         # tokens.Name,
         # tokens.PositiveInteger,
         # tokens.EndOfLine,
@@ -102,11 +101,13 @@ MODE_TOKENS = {
         tokens.WholeLine,
     ],
     Mode.MACRO_DEFINITION: [
+        tokens.MacroDefinitionStart,
         tokens.MacroDefinitionEnd,
         tokens.SharpComment,
         tokens.MacroContent,
     ],
     Mode.MACRO_DETECTION: [
+        tokens.MacroDefinitionStart,
         tokens.MacroArgument,
         tokens.MacroCallStart,
         tokens.EndOfLine,
@@ -183,7 +184,7 @@ class Lexer:
             (line, self._location) = line_info
             self.x.tokenizer.set_string(line)
 
-        print('    ' * (len(self.stack) + 1), self.mode, self.x.tokenizer, end=' ')
+        print('    ' * (len(self.stack) + 1), self.mode, end=' ')
 
         (token, column) = next(self.x.tokenizer)
         self._location = self._location.move_to(column)
@@ -192,7 +193,30 @@ class Lexer:
 
         if self.mode == Mode.MACRO_DETECTION:
 
-            if isinstance(token, tokens.MacroArgument):
+            if isinstance(token, tokens.MacroDefinitionStart):
+                self.set_mode(Mode.MACRO_DEFINITION)
+
+                name = token.value
+
+                raw_lines = []
+                c = 0
+                (token, _) = next(self)
+                while not (isinstance(token, tokens.MacroDefinitionEnd) and c == 0):
+                    if isinstance(token, tokens.MacroDefinitionStart):
+                        c += 1
+                        raw_lines.append(token.matched_value)
+                    elif isinstance(token, tokens.MacroDefinitionEnd):
+                        c -= 1
+                        raw_lines.append(token.matched_value)
+                    elif token.value:
+                        raw_lines.append(token.value)
+                    (token, _) = next(self)
+
+                self.add_macro(name, ''.join(raw_lines))
+
+                self.set_mode(Mode.MACRO_DETECTION)
+
+            elif isinstance(token, tokens.MacroArgument):
                 self.x.acc += self.x.c_call.args[token.value]
 
                 x = Context(self.x.acc, self.x.c_call)
@@ -236,27 +260,10 @@ class Lexer:
 
             return next(self)
 
-        elif self.mode == Mode.DEFAULT:
+        # elif self.mode == Mode.DEFAULT:
 
             # if isinstance(token, tokens.MultilineStringStart):
             #     token = self._handle_multiline_string(self.mode)
-
-            if isinstance(token, tokens.MacroDefinitionStart):
-                self.set_mode(Mode.MACRO_DEFINITION)
-
-                name = token.value
-
-                raw_lines = []
-                (token, _) = next(self)
-                while not isinstance(token, tokens.MacroDefinitionEnd):
-                    if token.value:
-                        raw_lines.append(token.value)
-                    (token, _) = next(self)
-
-                self.add_macro(name, ''.join(raw_lines))
-
-                self.set_mode(Mode.MACRO_DETECTION)
-                return next(self)
 
         return (token, self._location)
 
