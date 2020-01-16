@@ -278,6 +278,24 @@ class MacroContent(BaseTokenWithPattern):
     pattern = r'[^\]#]+'
 
 
+class MacroArgument(BaseTokenWithPattern):
+    """
+    Matches a macro argument.
+
+    >>> import re; This = MacroArgument
+    >>> re.match(This.pattern, "${1}")
+    <_sre.SRE_Match object; span=(0, 4), match='${1}'>
+
+    >>> print(This("${1}"))
+    MacroArgument(1)
+    """
+    pattern = r'\$\{\d+}'
+
+    @staticmethod
+    def process(value):
+        return int(value[2:-1])
+
+
 class MacroCallStart(BaseTokenWithPattern):
     """
     Matches the start of a macro call.
@@ -295,28 +313,17 @@ class MacroCallStart(BaseTokenWithPattern):
     >>> re.match(This.pattern, "${?foo}")
     <_sre.SRE_Match object; span=(0, 6), match='${?foo'>
 
-    >>> re.match(This.pattern, "${1}")
-    <_sre.SRE_Match object; span=(0, 3), match='${1'>
+    >>> re.match(This.pattern, "${foo.")
 
-    >>> re.match(This.pattern, "${1 ")
-    <_sre.SRE_Match object; span=(0, 3), match='${1'>
-
-    >>> re.match(This.pattern, "${1.")
-
-    >>> re.match(This.pattern, "${?1 ")
-
-    >>> re.match(This.pattern, "$${1}")
+    >>> re.match(This.pattern, "$${foo ")
 
     >>> print(This("${foo "))
-    MacroCallStart(('foo ', False))
+    MacroCallStart(('foo', False))
 
     >>> print(This("${?foo "))
-    MacroCallStart(('foo ', True))
-
-    >>> print(This("${1 "))
-    MacroCallStart(('1 ', False))
+    MacroCallStart(('foo', True))
     """
-    pattern = r'\${(\??[a-zA-Z_]\w*|\d+)(?=(\s|}))'
+    pattern = r'\${(\??[a-zA-Z_]\w*)(?=(\s|}))'
 
     @staticmethod
     def process(value):
@@ -325,7 +332,7 @@ class MacroCallStart(BaseTokenWithPattern):
         - macro name
         - optional call flag
         """
-        name = value[2:]
+        name = value[2:].strip()
         if name[0] == '?':
             return (name[1:], True)
         return (name, False)
@@ -333,7 +340,7 @@ class MacroCallStart(BaseTokenWithPattern):
 
 class NonMacroCall(BaseTokenWithPattern):
     """
-    Matches anything up to a MacroCallStart.
+    Matches anything up to a MacroArgument or MacroCallStart.
 
     >>> import re; This = NonMacroCall
     >>> re.match(This.pattern, "foo ${bar ")
@@ -342,12 +349,20 @@ class NonMacroCall(BaseTokenWithPattern):
     >>> re.match(This.pattern, "foo ${bar ${bin")
     <_sre.SRE_Match object; span=(0, 4), match='foo '>
 
+    >>> re.match(This.pattern, "foo ${1} ${bin")
+    <_sre.SRE_Match object; span=(0, 4), match='foo '>
+
+    >>> re.match(This.pattern, "foo ${1 ${bin ")
+    <_sre.SRE_Match object; span=(0, 8), match='foo ${1 '>
+
+    >>> re.match(This.pattern, "foo ${1 ${bin")
+
     >>> re.match(This.pattern, "foo bar\\n")
     <_sre.SRE_Match object; span=(0, 7), match='foo bar'>
 
     >>> re.match(This.pattern, "${bar foo")
     """
-    pattern = r'(.|\n)+?(?=(' + MacroCallStart.pattern + r'|\n))'
+    pattern = r'.+?(?=(' + MacroCallStart.pattern + r'|' + MacroArgument.pattern + r'|\n))'
 
 
 class MacroCallEnd(BaseTokenWithPattern):
