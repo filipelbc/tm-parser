@@ -289,11 +289,11 @@ class MacroArgument(BaseTokenWithPattern):
     >>> print(This("${1}"))
     MacroArgument(1)
     """
-    pattern = r'\$\{\d+}'
+    pattern = r'\$\{[1-9]\d*}'
 
     @staticmethod
     def process(value):
-        return int(value[2:-1])
+        return int(value[2:-1]) - 1
 
 
 class MacroCallStart(BaseTokenWithPattern):
@@ -313,6 +313,9 @@ class MacroCallStart(BaseTokenWithPattern):
     >>> re.match(This.pattern, "${?foo}")
     <_sre.SRE_Match object; span=(0, 6), match='${?foo'>
 
+    >>> re.match(This.pattern, "${?foo")
+    <_sre.SRE_Match object; span=(0, 6), match='${?foo'>
+
     >>> re.match(This.pattern, "${foo.")
 
     >>> re.match(This.pattern, "$${foo ")
@@ -323,7 +326,7 @@ class MacroCallStart(BaseTokenWithPattern):
     >>> print(This("${?foo "))
     MacroCallStart(('foo', True))
     """
-    pattern = r'\${(\??[a-zA-Z_]\w*)(?=(\s|}))'
+    pattern = r'\${(\??[a-zA-Z_]\w*)(?=(\s|}|$))'
 
     @staticmethod
     def process(value):
@@ -346,6 +349,15 @@ class NonMacroCall(BaseTokenWithPattern):
     >>> re.match(This.pattern, "foo ${bar ")
     <_sre.SRE_Match object; span=(0, 4), match='foo '>
 
+    >>> re.match(This.pattern, "foo ${bar} ")
+    <_sre.SRE_Match object; span=(0, 4), match='foo '>
+
+    >>> re.match(This.pattern, 'foo ${bar "foo"} bar')
+    <_sre.SRE_Match object; span=(0, 4), match='foo '>
+
+    >>> re.match(This.pattern, 'foo ${bar "foo"} bar ${foo ')
+    <_sre.SRE_Match object; span=(0, 4), match='foo '>
+
     >>> re.match(This.pattern, "foo ${bar ${bin")
     <_sre.SRE_Match object; span=(0, 4), match='foo '>
 
@@ -356,13 +368,18 @@ class NonMacroCall(BaseTokenWithPattern):
     <_sre.SRE_Match object; span=(0, 8), match='foo ${1 '>
 
     >>> re.match(This.pattern, "foo ${1 ${bin")
+    <_sre.SRE_Match object; span=(0, 8), match='foo ${1 '>
+
+    >>> re.match(This.pattern, "foo bar")
+    <_sre.SRE_Match object; span=(0, 7), match='foo bar'>
 
     >>> re.match(This.pattern, "foo bar\\n")
     <_sre.SRE_Match object; span=(0, 7), match='foo bar'>
 
     >>> re.match(This.pattern, "${bar foo")
+    <_sre.SRE_Match object; span=(0, 9), match='${bar foo'>
     """
-    pattern = r'.+?(?=(' + MacroCallStart.pattern + r'|' + MacroArgument.pattern + r'|\n))'
+    pattern = r'.+?(?=(' + MacroCallStart.pattern + r'|' + MacroArgument.pattern + r'|$))'
 
 
 class MacroCallEnd(BaseTokenWithPattern):
