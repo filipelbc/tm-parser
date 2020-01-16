@@ -51,3 +51,7 @@ class Tokenizer:
             for t in possible_tokens
         ]
         self._pattern = re.compile('|'.join(patterns))
+
+
+    def __str__(self):
+        return 'Tokenizer(%r, %r)' % (self.string, self.position)
