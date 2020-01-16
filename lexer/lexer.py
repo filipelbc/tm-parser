@@ -1,67 +1,10 @@
 import sys
-
 from pathlib import Path
-from io import StringIO
 
 import tokens
 from tokenizer import Tokenizer
+from line_stream import LineStream
 from utils import UntilNoneIterator
-
-
-class Location:
-    """
-    Holds the information about the position of a character (in practice, the
-    first character of a token) in a file or string.
-    """
-
-    def __init__(self, path, line_num, column=0):
-        self.path = path
-        self.line_num = line_num
-        self.column = column
-
-    def __str__(self):
-        """
-        >>> print(Location("foo.tjp", 2, 10))
-        Location('foo.tjp', 2, 10)
-        """
-        return '%s(%r, %s, %s)' % (self.__class__.__name__,
-                                   self.path,
-                                   self.line_num,
-                                   self.column)
-
-    def move_to(self, column):
-        """
-        Creates a copy of the location, but uses the new column.
-        """
-        return Location(self.path, self.line_num, column)
-
-
-class LineStream:
-    """
-    Provides an interface to get a stream of lines from either a file or a
-    string. Lines are provided together with their corresponding location.
-    """
-
-    def __init__(self, source):
-        if isinstance(source, str):
-            self.path = None
-            self.file = StringIO(source)
-        elif isinstance(source, Path):
-            self.path = source
-            self.file = open(source, 'r')
-        else:
-            raise ValueError(source)
-        self.line_num = 0
-
-    def __next__(self):
-        line = self.file.readline()
-        if not line:
-            return None
-        self.line_num += 1
-        return (line, Location(self.path, self.line_num))
-
-    def __iter__(self):
-        return UntilNoneIterator(self)
 
 
 class UnexpectedEndOfInput(RuntimeError):
@@ -131,9 +74,14 @@ class MacroCall:
         self.args = []
         self.is_optional = is_optional
 
-
-    def __str__(self):
-        return 'MacroCall(%r, %s, %s)' % (self.name, self.args, self.is_optional)
+    def __repr__(self):
+        """
+        >>> MacroCall('foo', True)
+        MacroCall('foo', [], True)
+        """
+        return 'MacroCall(%r, %s, %s)' % (self.name,
+                                          self.args,
+                                          self.is_optional)
 
 
 class Context:
@@ -145,6 +93,7 @@ class Context:
         self.c_call = current_call
         self.n_call = None
         self.tokenizer = Tokenizer()
+
 
 class Lexer:
 
@@ -162,7 +111,6 @@ class Lexer:
             self.x.available_macros[name] = value
         else:
             self.stack[-1].available_macros[name] = value
-
 
     def __next__(self):
         if not self.x.tokenizer:
@@ -204,10 +152,10 @@ class Lexer:
                 while not (isinstance(token, tokens.MacroDefinitionEnd) and c == 0):
                     if isinstance(token, tokens.MacroDefinitionStart):
                         c += 1
-                        raw_lines.append(token.matched_value)
+                        raw_lines.append(token.matched_string)
                     elif isinstance(token, tokens.MacroDefinitionEnd):
                         c -= 1
-                        raw_lines.append(token.matched_value)
+                        raw_lines.append(token.matched_string)
                     elif token.value:
                         raw_lines.append(token.value)
                     (token, _) = next(self)
@@ -304,4 +252,3 @@ if __name__ == '__main__':
         t += token.value
 
     print(t)
-

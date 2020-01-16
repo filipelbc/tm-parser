@@ -9,8 +9,9 @@ class BaseToken:
            post-processed.
     """
 
-    def __init__(self, value):
-        self.value = self.process(value)
+    def __init__(self, matched_string):
+        self.matched_string = matched_string
+        self.value = self.process(matched_string)
 
     @staticmethod
     def process(value):
@@ -20,7 +21,11 @@ class BaseToken:
         """
         return value
 
-    def __str__(self):
+    def __repr__(self):
+        """
+        >>> BaseToken('foo')
+        BaseToken('foo')
+        """
         return '%s(%r)' % (self.kind, self.value)
 
     @property
@@ -60,7 +65,7 @@ class SharpComment(BaseTokenWithPattern):
     >>> re.match(This.pattern, '#foo')
     <_sre.SRE_Match object; span=(0, 4), match='#foo'>
 
-    >>> print(This('# comment text'))
+    >>> This('# comment text')
     Comment(None)
     """
     pattern = r'#.*'
@@ -85,10 +90,10 @@ class String(BaseTokenWithPattern):
     >>> re.match(This.pattern, r'"foo \\"bar\\" buu" "wololo"')
     <_sre.SRE_Match object; span=(0, 17), match='"foo \\\\"bar\\\\" buu"'>
 
-    >>> print(This('"foo"'))
+    >>> This('"foo"')
     String('foo')
 
-    >>> print(This(r'"fo\\no"'))
+    >>> This(r'"fo\\no"')
     String('fo\\no')
     """
     pattern = r'"(\\"|[^"])+"'
@@ -106,13 +111,13 @@ class MultilineString(BaseToken):
     Token type for multiline strings. Does not have a pattern attached to it.
     Its kind is the same as the String token.
 
-    >>> print(MultilineString("foo bar"))
+    >>> MultilineString("foo bar")
     String('foo bar')
 
-    >>> print(MultilineString(["foo bar\\n", "  buu\\n"]))
+    >>> MultilineString(["foo bar\\n", "  buu\\n"])
     String('foo bar\\n  buu')
 
-    >>> print(MultilineString(["   foo bar\\n", "  buu\\n"]))
+    >>> MultilineString(["   foo bar\\n", "  buu\\n"])
     String('foo bar\\nbuu')
     """
 
@@ -190,7 +195,7 @@ class PositiveInteger(BaseTokenWithPattern):
     """
     Matches a positive integer.
 
-    >>> print(PositiveInteger('123'))
+    >>> PositiveInteger('123')
     PositiveInteger(123)
     """
     pattern = r'[1-9]\d*'
@@ -237,7 +242,7 @@ class MacroDefinitionStart(BaseTokenWithPattern):
 
     >>> p.match(" macro foo [", 1)
 
-    >>> print(This("macro foo ["))
+    >>> This("macro foo [")
     MacroDefinitionStart('foo')
     """
     pattern = r'^\s*macro\s+([a-zA-Z_]\w*)\s+\['
@@ -286,8 +291,8 @@ class MacroArgument(BaseTokenWithPattern):
     >>> re.match(This.pattern, "${1}")
     <_sre.SRE_Match object; span=(0, 4), match='${1}'>
 
-    >>> print(This("${1}"))
-    MacroArgument(1)
+    >>> This("${1}")
+    MacroArgument(0)
     """
     pattern = r'\$\{[1-9]\d*}'
 
@@ -320,10 +325,10 @@ class MacroCallStart(BaseTokenWithPattern):
 
     >>> re.match(This.pattern, "$${foo ")
 
-    >>> print(This("${foo "))
+    >>> This("${foo ")
     MacroCallStart(('foo', False))
 
-    >>> print(This("${?foo "))
+    >>> This("${?foo ")
     MacroCallStart(('foo', True))
     """
     pattern = r'\${(\??[a-zA-Z_]\w*)(?=(\s|}|$))'

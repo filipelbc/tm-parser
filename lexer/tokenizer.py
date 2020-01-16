@@ -9,15 +9,14 @@ class Tokenizer:
     At each iteration, the list of possible tokens can be changed.
 
     >>> from tokens import Name, String, EndOfLine, WhiteSpace
-    >>> lt = Tokenizer()
-    >>> lt.set_string('bar "wololo"\\n')
-    >>> lt.set_possible_tokens([Name, String, EndOfLine, WhiteSpace])
-    >>> x = next(lt)
-    >>> while x: print('%s, %s' % x); x = next(lt)
-    Name('bar'), 0
-    WhiteSpace(' '), 3
-    String('wololo'), 4
-    EndOfLine('\\n'), 12
+    >>> t = Tokenizer()
+    >>> t.set_string('bar "wololo"\\n')
+    >>> t.set_possible_tokens([Name, String, EndOfLine, WhiteSpace])
+    >>> while t: next(t)
+    (Name('bar'), 0)
+    (WhiteSpace(' '), 3)
+    (String('wololo'), 4)
+    (EndOfLine('\\n'), 12)
     """
 
     def __init__(self):
@@ -32,12 +31,12 @@ class Tokenizer:
         if not m:
             return None
 
-        tid = m.lastgroup
+        token_name = m.lastgroup
         value = m.group()
         position = self.position
         self.position += len(value)
 
-        token_class = self.possible_tokens[tid]
+        token_class = self.possible_tokens[token_name]
         return (token_class(value), position)
 
     def set_string(self, string):
@@ -52,6 +51,11 @@ class Tokenizer:
         ]
         self._pattern = re.compile('|'.join(patterns))
 
-
-    def __str__(self):
+    def __repr__(self):
+        """
+        >>> t = Tokenizer()
+        >>> t.set_string("foo bar")
+        >>> t
+        Tokenizer('foo bar', 0)
+        """
         return 'Tokenizer(%r, %r)' % (self.string, self.position)
