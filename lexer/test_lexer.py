@@ -71,6 +71,8 @@ bar 2
 (EndOfLine('\\n'), Location(None, 1, 5))
 """
 
+
+# FIXME: enable this case
 CASE_MULTILINE_STRING_1 = """\
 foo -8<-
   line 1
@@ -169,6 +171,7 @@ bar ${foo
 (EndOfLine('\\n'), Location(None, 1, 6))
 """
 
+# FIXME broken: should get Name('fobarin'), Name('bin'), String('babaroo')
 CASE_MACRO_CONCAT_1 = """\
 macro foo [bar]
 fo${foo}in bin "ba${foo}oo"
@@ -184,7 +187,6 @@ fo${foo}in bin "ba${foo}oo"
 (Other('"'), Location(None, 1, 2))
 (EndOfLine('\\n'), Location(None, 1, 3))
 """
-
 
 CASE_MACRO_CONCAT_2 = """\
 macro foo [o
@@ -213,6 +215,7 @@ fo${foo}in bin fo${foo}in
 (Name('in'), Location(None, 1, 0))
 (EndOfLine('\\n'), Location(None, 1, 2))
 """
+
 
 class Test(TestCase):
 
