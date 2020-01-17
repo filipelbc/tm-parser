@@ -217,9 +217,19 @@ class EndOfLine(BaseTokenWithPattern):
 
 class WhiteSpace(BaseTokenWithPattern):
     """
-    Matches any positive amount of whitespace.
+    Matches any positive amount of whitespace, but not the newline.
+
+    >>> import re; This = WhiteSpace
+    >>> re.match(This.pattern, "   ")
+    <_sre.SRE_Match object; span=(0, 3), match='   '>
+
+    >>> re.match(This.pattern, "   \\n")
+    <_sre.SRE_Match object; span=(0, 3), match='   '>
+
+    >>> re.match(This.pattern, "   a")
+    <_sre.SRE_Match object; span=(0, 3), match='   '>
     """
-    pattern = r'\s+'
+    pattern = r'\s+?(?=($|[^\s]|[\n]))'
 
 
 class Other(BaseTokenWithPattern):
