@@ -166,11 +166,9 @@ class Lexer:
 
             elif isinstance(token, tokens.MacroArgument):
                 self.x.acc += self.x.c_call.args[token.value]
-
-                x = Context(self.x.acc, self.x.c_call)
-                self.stack.append(self.x)
+                self.x.acc += self.x.tokenizer.remaining_string()
+                self.x.tokenizer.set_string(self.x.acc)
                 self.x.acc = ''
-                self.x = x
                 self.set_mode(Mode.MACRO_DETECTION)
 
             elif isinstance(token, tokens.MacroCallStart):
