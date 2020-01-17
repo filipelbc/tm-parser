@@ -107,7 +107,7 @@ class Lexer:
         self.x.tokenizer.set_possible_tokens(MODE_TOKENS[mode])
 
     def add_macro(self, name, value):
-        if self.x.line_stream.path:
+        if self.x.line_stream.path or len(self.stack) == 0:
             self.x.available_macros[name] = value
         else:
             self.stack[-1].available_macros[name] = value
@@ -122,10 +122,10 @@ class Lexer:
 
                 if self.stack:
                     self.x = self.stack.pop()
-                    if self.mode == Mode.DEFAULT:
-                        self.set_mode(Mode.MACRO_DETECTION)
                     if self.mode == Mode.MACRO_DEFINITION:
                         self.set_mode(Mode.MACRO_DEFINITION)
+                    else:
+                        self.set_mode(Mode.MACRO_DETECTION)
                     return next(self)
                 return None
 
