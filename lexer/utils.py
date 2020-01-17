@@ -15,6 +15,9 @@ class UntilNoneIterator:
     ...
     >>> print([i for i in Foo()])
     [3, 2, 1, 0]
+
+    >>> [x for x in UntilNoneIterator(iter([1, 2, None]))]
+    [1, 2]
     """
 
     def __init__(self, obj):
@@ -25,3 +28,6 @@ class UntilNoneIterator:
         if value is None:
             raise StopIteration
         return value
+
+    def __iter__(self):
+        return self
