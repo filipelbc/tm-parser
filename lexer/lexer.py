@@ -197,10 +197,12 @@ class Lexer:
 
             elif isinstance(token, tokens.MacroCallEnd):
                 self.x.acc += self.resolve_macro(self.x.n_call)
+                self.x.acc += self.x.tokenizer.remaining_string()
 
                 x = Context(self.x.acc, self.x.n_call)
                 self.stack.append(self.x)
                 self.x.acc = ''
+                self.x.tokenizer.set_string('')
                 self.x = x
                 self.set_mode(Mode.MACRO_DETECTION)
 
