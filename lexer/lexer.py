@@ -29,14 +29,14 @@ class Mode:
 
 MODE_TOKENS = {
     Mode.DEFAULT: [
-        # tokens.SharpComment,
-        # tokens.String,
+        tokens.SharpComment,
+        tokens.String,
         # tokens.MultilineStringStart,
-        # tokens.Name,
-        # tokens.PositiveInteger,
-        # tokens.EndOfLine,
-        # tokens.WhiteSpace,
-        # tokens.Other,
+        tokens.Name,
+        tokens.PositiveInteger,
+        tokens.EndOfLine,
+        tokens.WhiteSpace,
+        tokens.Other,
         tokens.WholeLine,
     ],
     Mode.MULTILINE_STRING: [
