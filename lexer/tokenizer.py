@@ -51,6 +51,9 @@ class Tokenizer:
         ]
         self._pattern = re.compile('|'.join(patterns))
 
+    def remaining_string(self):
+        return self.string[self.position:]
+
     def __repr__(self):
         """
         >>> t = Tokenizer()
