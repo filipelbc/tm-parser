@@ -341,8 +341,10 @@ class MacroDefinitionEnd(BaseTokenWithPattern):
     >>> import re; This = MacroDefinitionEnd
     >>> re.match(This.pattern, "] \\n")
     <_sre.SRE_Match object; span=(0, 3), match='] \\n'>
+
+    >>> re.match(This.pattern, "] a\\n")
     """
-    pattern = r']\s+'
+    pattern = r']\s+$'
 
     @classmethod
     def process(cls, value):
