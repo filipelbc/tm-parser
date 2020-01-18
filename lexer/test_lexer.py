@@ -1,8 +1,9 @@
+from pathlib import Path
 from unittest import TestCase
 
 from utils import UntilNoneIterator
 
-from lexer import Lexer, UnexpectedEndOfInput
+from lexer import Lexer
 
 
 CASE_BASIC = """\
@@ -308,14 +309,33 @@ String('a b c d\\ne\\n')
 EndOfLine('\\n')
 """
 
+PCASE_INCLUDE_IN_STRING = """\
+samples/a
+---
+Name('a')
+WhiteSpace(' ')
+String('ia\\nb -8<-\\nib\\n  c\\n  c\\nib\\n->8-\\nb\\nia\\n')
+EndOfLine('\\n')
+Name('a')
+EndOfLine('\\n')
+WhiteSpace('  ')
+Name('b')
+WhiteSpace(' ')
+String('ib\\n  c\\n  c\\nib\\n')
+EndOfLine('\\n')
+WhiteSpace('  ')
+Name('b')
+EndOfLine('\\n')
+"""
+
 
 def with_cases(cls):
     g = globals()
     for c in g:
-        if c.startswith('CASE_'):
+        if c.startswith(('CASE_', 'PCASE_')):
 
-            def test_case(self, case=g[c]):
-                self.check(case)
+            def test_case(self, case=g[c], p=c.startswith('P')):
+                self.run_case(case, p=p)
 
             setattr(cls, 'test_' + c[5:].lower(), test_case)
     return cls
@@ -326,7 +346,14 @@ class Test(TestCase):
 
     maxDiff = None
 
-    def check(self, case):
+    @staticmethod
+    def _tokenize(source):
+        return '\n'.join(str(x[0]) for x in UntilNoneIterator(Lexer(source)))
+
+    def run_case(self, case, p):
         source, expected_tokens = case.split('---\n')
-        tokens = '\n'.join(str(x[0]) for x in UntilNoneIterator(Lexer(source)))
+        if p:
+            tokens = self._tokenize(Path(source.strip()))
+        else:
+            tokens = self._tokenize(source)
         self.assertEqual(expected_tokens, tokens + '\n')
