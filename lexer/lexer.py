@@ -37,11 +37,10 @@ MODE_TOKENS = {
         tokens.EndOfLine,
         tokens.WhiteSpace,
         tokens.Other,
-        tokens.WholeLine,
     ],
     Mode.MULTILINE_STRING: [
         tokens.MultilineStringEnd,
-        tokens.WholeLine,
+        tokens.MultilineStringContent,
     ],
     Mode.MACRO_DEFINITION: [
         tokens.MacroDefinitionStart,
@@ -101,6 +100,7 @@ class Lexer:
         self.x = Context(source)
         self.set_mode(Mode.MACRO_DETECTION)
         self.stack = []
+        self.in_multiline_string = False
 
     def set_mode(self, mode):
         self.mode = mode
@@ -117,7 +117,7 @@ class Lexer:
             line_info = next(self.x.line_stream)
 
             if line_info is None:
-                if self.mode not in [Mode.MACRO_DETECTION, Mode.DEFAULT, Mode.MACRO_DEFINITION]:
+                if self.mode == Mode.MACRO_EXPANSION:
                     raise UnexpectedEndOfInput()
 
                 if self.stack:
@@ -127,12 +127,16 @@ class Lexer:
                     else:
                         self.set_mode(Mode.MACRO_DETECTION)
                     return next(self)
+
+                if self.mode == Mode.MULTILINE_STRING:
+                    raise UnexpectedEndOfInput()
+
                 return None
 
             (line, self._location) = line_info
             self.x.tokenizer.set_string(line)
 
-        print('    ' * (len(self.stack) + 1), self.mode, end=' ')
+        print('    ' * (len(self.stack) + 1), self.mode, self.x.tokenizer, end=' ')
 
         (token, column) = next(self.x.tokenizer)
         self._location = self._location.move_to(column)
@@ -187,14 +191,17 @@ class Lexer:
                     self.stack.append(self.x)
                     self.x.acc = ''
                     self.x = x
-                    self.set_mode(Mode.DEFAULT)
+                    if self.in_multiline_string:
+                        self.set_mode(Mode.MULTILINE_STRING)
+                    else:
+                        self.set_mode(Mode.DEFAULT)
 
             return next(self)
 
         elif self.mode == Mode.MACRO_EXPANSION:
 
             if isinstance(token, tokens.MultilineStringStart):
-                token = self._handle_multiline_string(self.mode)
+                token = self.handle_multiline_string(self.mode)
 
             if isinstance(token, (tokens.String, tokens.MultilineString)):
                 self.x.n_call.args.append(token.value)
@@ -212,15 +219,16 @@ class Lexer:
 
             return next(self)
 
-        # elif self.mode == Mode.DEFAULT:
+        elif self.mode == Mode.DEFAULT:
 
-            # if isinstance(token, tokens.MultilineStringStart):
-            #     token = self._handle_multiline_string(self.mode)
+            if isinstance(token, tokens.MultilineStringStart):
+                token = self.handle_multiline_string(self.mode)
 
         return (token, self._location)
 
-    def _handle_multiline_string(self, previous_mode):
+    def handle_multiline_string(self, previous_mode):
         self.set_mode(Mode.MULTILINE_STRING)
+        self.in_multiline_string = True
 
         raw_lines = []
         (token, _) = next(self)
@@ -229,11 +237,11 @@ class Lexer:
             (token, _) = next(self)
 
         self.set_mode(previous_mode)
+        self.in_multiline_string = False
         return tokens.MultilineString(raw_lines)
 
     def resolve_macro(self, mc):
         for x in reversed(self.stack + [self.x]):
-            print(x.available_macros)
             if mc.name in x.available_macros:
                 return x.available_macros[mc.name]
 

@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from utils import UntilNoneIterator
 
-from lexer import Lexer
+from lexer import Lexer, UnexpectedEndOfInput
 
 
 CASE_BASIC = """\
@@ -85,14 +85,33 @@ String('bar')
 EndOfLine('\\n')
 """
 
-# FIXME: enable this case
-_CASE_MULTILINE_STRING_1 = """\
+CASE_MULTILINE_STRING_1 = """\
 foo -8<-
-  line 1
-  line 2
+  a
+    b
 ->8-
 bar
 ---
+Name('foo')
+WhiteSpace(' ')
+String('a\\n  b\\n')
+EndOfLine('\\n')
+Name('bar')
+EndOfLine('\\n')
+"""
+
+CASE_MULTILINE_STRING_2 = """\
+foo -8<- a
+  b
+   c ->8-
+bar
+---
+Name('foo')
+WhiteSpace(' ')
+String('a\\n b\\n  c ')
+EndOfLine('\\n')
+Name('bar')
+EndOfLine('\\n')
 """
 
 CASE_MACRO_BASIC = """\
@@ -173,6 +192,7 @@ WhiteSpace(' ')
 Name('b')
 EndOfLine('\\n')
 String('c')
+EndOfLine('\\n')
 WhiteSpace(' ')
 Name('y')
 EndOfLine('\\n')

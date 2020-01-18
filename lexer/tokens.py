@@ -115,15 +115,18 @@ class MultilineString(BaseToken):
     String('foo bar')
 
     >>> MultilineString(["foo bar\\n", "  buu\\n"])
-    String('foo bar\\n  buu')
+    String('foo bar\\n  buu\\n')
 
     >>> MultilineString(["   foo bar\\n", "  buu\\n"])
-    String('foo bar\\nbuu')
+    String(' foo bar\\nbuu\\n')
+
+    >>> MultilineString(["\\n foo bar\\n", "   buu\\n"])
+    String('foo bar\\n  buu\\n')
     """
 
     @staticmethod
     def process(raw_lines):
-        return dedent(''.join(raw_lines)).strip()
+        return dedent(''.join(raw_lines).lstrip('\n'))
 
     @property
     def kind(self):
@@ -136,10 +139,13 @@ class MultilineStringStart(BaseTokenWithPattern):
     token in the same line, but may only be followed by whitespace.
 
     >>> import re; This = MultilineStringStart
-    >>> re.match(This.pattern, "-8<-  \\n")
-    <_sre.SRE_Match object; span=(0, 7), match='-8<-  \\n'>
+    >>> re.match(This.pattern, "-8<-")
+    <_sre.SRE_Match object; span=(0, 4), match='-8<-'>
+
+    >>> re.match(This.pattern, "-8<-foo")
+    <_sre.SRE_Match object; span=(0, 4), match='-8<-'>
     """
-    pattern = r'-8<-\s*$'
+    pattern = r'-8<-'
 
     @staticmethod
     def process(value):
@@ -152,14 +158,17 @@ class MultilineStringEnd(BaseTokenWithPattern):
     line.
 
     >>> import re; This = MultilineStringEnd
-    >>> re.match(This.pattern, "  ->8-  \\n")
-    <_sre.SRE_Match object; span=(0, 9), match='  ->8-  \\n'>
+    >>> re.match(This.pattern, "->8-")
+    <_sre.SRE_Match object; span=(0, 4), match='->8-'>
 
-    >>> re.match(MultilineStringStart.pattern, "foo ->8-")
+    >>> re.match(This.pattern, "->8-foo")
+    <_sre.SRE_Match object; span=(0, 4), match='->8-'>
 
-    >>> re.match(MultilineStringStart.pattern, "->8- foo")
+    >>> re.match(MultilineStringStart.pattern, " ->8-")
+
+    >>> re.match(MultilineStringStart.pattern, "f->8-")
     """
-    pattern = r'\s*->8-\s*$'
+    pattern = r'->8-'
 
     @staticmethod
     def process(value):
@@ -168,8 +177,7 @@ class MultilineStringEnd(BaseTokenWithPattern):
 
 class WholeLine(BaseTokenWithPattern):
     """
-    Matches everything next. Useful for handling the contents of a multiline
-    string.
+    Matches everything next. Only used for testing macro expansions.
 
     >>> import re; This = WholeLine
     >>> re.match(This.pattern, "foo bar \\n")
@@ -179,6 +187,22 @@ class WholeLine(BaseTokenWithPattern):
     <_sre.SRE_Match object; span=(0, 1), match='\\n'>
     """
     pattern = r'(.|\n)+$'
+
+class MultilineStringContent(BaseTokenWithPattern):
+    """
+    Matches anything up to a MultilineStringEnd.
+
+    >>> import re; This = MultilineStringContent
+    >>> re.match(This.pattern, "foo bar ->8-")
+    <_sre.SRE_Match object; span=(0, 8), match='foo bar '>
+
+    >>> re.match(This.pattern, "foo bar \\n")
+    <_sre.SRE_Match object; span=(0, 9), match='foo bar \\n'>
+
+    >>> re.match(This.pattern, "\\n")
+    <_sre.SRE_Match object; span=(0, 1), match='\\n'>
+    """
+    pattern = r'\n|.+?(?=(' + MultilineStringEnd.pattern + r'|$))\n?'
 
 
 class Name(BaseTokenWithPattern):
@@ -389,12 +413,12 @@ class NonMacroCall(BaseTokenWithPattern):
     <_sre.SRE_Match object; span=(0, 7), match='foo bar'>
 
     >>> re.match(This.pattern, "foo bar\\n")
-    <_sre.SRE_Match object; span=(0, 7), match='foo bar'>
+    <_sre.SRE_Match object; span=(0, 8), match='foo bar\\n'>
 
     >>> re.match(This.pattern, "${bar foo")
     <_sre.SRE_Match object; span=(0, 9), match='${bar foo'>
     """
-    pattern = r'.+?(?=(' + MacroCallStart.pattern + r'|' + MacroArgument.pattern + r'|$))'
+    pattern = r'\n|.+?(?=(' + MacroCallStart.pattern + r'|' + MacroArgument.pattern + r'|$))\n?'
 
 
 class MacroCallEnd(BaseTokenWithPattern):
