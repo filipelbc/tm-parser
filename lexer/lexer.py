@@ -47,11 +47,10 @@ MODE_TOKENS = {
         tokens.MacroContent,
     ],
     Mode.PREPROCESSOR: [
+        tokens.Include,
         tokens.MacroDefinitionStart,
         tokens.MacroArgument,
-        tokens.Include,
         tokens.MacroCallStart,
-        tokens.EndOfLine,
         tokens.NonMacroCall,
     ],
     Mode.MACRO_EXPANSION: [
@@ -197,27 +196,7 @@ class Lexer:
         if self.mode == Mode.PREPROCESSOR:
 
             if isinstance(token, tokens.MacroDefinitionStart):
-                self.set_mode(Mode.MACRO_DEFINITION)
-
-                name = token.value
-
-                raw_lines = []
-                c = 0
-                (token, _) = next(self)
-                while not (isinstance(token, tokens.MacroDefinitionEnd) and c == 0):
-                    if isinstance(token, tokens.MacroDefinitionStart):
-                        c += 1
-                        raw_lines.append(token.matched_string)
-                    elif isinstance(token, tokens.MacroDefinitionEnd):
-                        c -= 1
-                        raw_lines.append(token.matched_string)
-                    elif token.value:
-                        raw_lines.append(token.value)
-                    (token, _) = next(self)
-
-                self.add_macro(name, ''.join(raw_lines))
-
-                self.set_mode(Mode.PREPROCESSOR)
+                self.handle_macro_definition(token)
 
             elif isinstance(token, tokens.MacroArgument):
                 self.x.acc += self.x.c_call.args[token.value]
@@ -237,7 +216,7 @@ class Lexer:
                     self.in_multiline_string += 1
 
             else:
-                self.x.acc += token.value or '\n'
+                self.x.acc += token.value
 
                 if not self.x.tokenizer:
                     self.push(self.x.acc, self.x.n_call)
@@ -276,12 +255,34 @@ class Lexer:
         self.set_mode(Mode.MULTILINE_STRING)
         self.in_multiline_string = 1
 
-        raw_lines = []
+        lines = []
         (token, _) = next(self)
         while not (isinstance(token, tokens.MultilineStringEnd) and self.in_multiline_string == 1):
-            raw_lines.append(token.matched_string)
+            lines.append(token.matched_string)
             (token, _) = next(self)
 
         self.set_mode(previous_mode)
         self.in_multiline_string = 0
-        return tokens.MultilineString(raw_lines)
+        return tokens.MultilineString(lines)
+
+    def handle_macro_definition(self, token):
+        self.set_mode(Mode.MACRO_DEFINITION)
+
+        macro_name = token.value
+        macro_value = ''
+        nesting = 0
+
+        (token, _) = next(self)
+        while not (isinstance(token, tokens.MacroDefinitionEnd) and nesting == 0):
+            if isinstance(token, tokens.MacroDefinitionStart):
+                nesting += 1
+                macro_value += token.matched_string
+            elif isinstance(token, tokens.MacroDefinitionEnd):
+                nesting -= 1
+                macro_value += token.matched_string
+            elif token.value:
+                macro_value += token.value
+            (token, _) = next(self)
+
+        self.add_macro(macro_name, macro_value)
+        self.set_mode(Mode.PREPROCESSOR)
