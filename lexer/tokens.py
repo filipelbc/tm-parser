@@ -446,3 +446,23 @@ class MacroCallEnd(BaseTokenWithPattern):
     @staticmethod
     def process(value):
         return None
+
+
+class Include(BaseTokenWithPattern):
+    """
+    Matches a "include" directive.
+
+        include "./foo/bar"
+
+    >>> import re; This = Include; string = '  include  "./foo"  \\n'
+    >>> re.match(This.pattern, string)
+    <_sre.SRE_Match object; span=(0, 21), match='  include  "./foo"  \\n'>
+
+    >>> This(string)
+    Include('./foo')
+    """
+    pattern = r'^\s*include\s+' + String.pattern + r'\s*$'
+
+    @staticmethod
+    def process(value):
+        return String.process(value.strip()[7:])
