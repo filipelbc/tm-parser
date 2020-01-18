@@ -1,0 +1,7 @@
+a -8<-
+  ia
+  include "b"
+  ia
+->8-
+a
+include "b"
