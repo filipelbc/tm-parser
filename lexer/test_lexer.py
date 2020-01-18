@@ -335,6 +335,20 @@ EndOfLine('\\n')
 EndOfLine('\\n')
 """
 
+## TODO: support nested macro defintions with arguments
+# CASE_NESTED_MACRO_DEFINITION_2 = """\
+# macro foo [
+#   a
+#   macro bar${2} [b
+#     ${1} $${1}
+#   e]
+#   f
+#   ${bar${2} "d"}
+# ]
+# ${foo "c" "1"}
+# ---
+# """
+
 PCASE_INCLUDE_IN_STRING = """\
 samples/a
 ---
