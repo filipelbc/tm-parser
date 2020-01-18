@@ -84,32 +84,85 @@ class MacroCall:
 
 class Context:
 
-    def __init__(self, source, current_call=None):
+    def __init__(self, source, macro_call=None):
         self.line_stream = LineStream(source)
-        self.available_macros = dict()
+        self.macros = dict()
         self.acc = ''
-        self.c_call = current_call
+        self.c_call = macro_call
         self.n_call = None
         self.tokenizer = Tokenizer()
+
+    @property
+    def is_file(self):
+        return bool(self.line_stream.path)
 
 
 class Lexer:
 
     def __init__(self, source):
-        self.x = Context(source)
-        self.set_mode(Mode.PREPROCESSOR)
         self.stack = []
+        self.push(source)
+        self.set_mode(Mode.PREPROCESSOR)
         self.in_multiline_string = 0
+
+    @property
+    def x(self):
+        """
+        Returns the current Context.
+        """
+        return self.stack[-1] if self.stack else None
+
+    def push(self, source, macro_call=None):
+        """
+        Adds a new Context to the stack. Resets the accumulator and tokenizer
+        of the current one.
+        """
+        if self.x:
+            self.x.acc = ''
+            self.x.tokenizer.set_string('')
+        self.stack.append(Context(source, macro_call))
+
+    def pop(self):
+        """
+        Removes the current Context from the stack and returns it.
+        """
+        return self.stack.pop()
 
     def set_mode(self, mode):
         self.mode = mode
         self.x.tokenizer.set_possible_tokens(MODE_TOKENS[mode])
 
     def add_macro(self, name, value):
-        if self.x.line_stream.path or len(self.stack) == 0:
-            self.x.available_macros[name] = value
-        else:
-            self.stack[-1].available_macros[name] = value
+        """
+        Adds a new macro to the appropriate Context. Only the first or a file
+        context can hold macros.
+        """
+        for x in reversed(self.stack):
+            if x.is_file:
+                x.macros[name] = value
+                return
+        self.x.macros[name] = value
+
+    def resolve_macro(self, mc):
+        for x in reversed(self.stack):
+            if mc.name in x.macros:
+                return x.macros[mc.name]
+
+        if not mc.is_optional:
+            raise UndefinedMacro(mc.name)
+
+        return ''
+
+    def resolve_path(self, string):
+        parent = None
+        for x in reversed(self.stack):
+            if x.is_file:
+                parent = x.line_stream.path.parent
+                break
+
+        if parent:
+            return parent / Path(string)
+        return Path(string)
 
     def __next__(self):
         if not self.x.tokenizer:
@@ -119,11 +172,11 @@ class Lexer:
                 if self.mode == Mode.MACRO_EXPANSION:
                     raise UnexpectedEndOfInput()
 
-                if self.stack:
-                    if self.x.line_stream.path:
+                if len(self.stack) > 1:
+                    if self.x.is_file:
                         if self.in_multiline_string:
                             self.in_multiline_string -= 1
-                    self.x = self.stack.pop()
+                    self.stack.pop()
                     if self.mode == Mode.MACRO_DEFINITION:
                         self.set_mode(Mode.MACRO_DEFINITION)
                     else:
@@ -138,12 +191,8 @@ class Lexer:
             (line, self._location) = line_info
             self.x.tokenizer.set_string(line)
 
-        print('    ' * (len(self.stack) + 1), self.mode, self.in_multiline_string, end=' ')
-
         (token, column) = next(self.x.tokenizer)
         self._location = self._location.move_to(column)
-
-        print(token, self.x.c_call)
 
         if self.mode == Mode.PREPROCESSOR:
 
@@ -174,11 +223,7 @@ class Lexer:
                 self.x.acc += self.x.c_call.args[token.value]
                 self.x.acc += self.x.tokenizer.remaining_string()
 
-                x = Context(self.x.acc, self.x.c_call)
-                self.stack.append(self.x)
-                self.x.acc = ''
-                self.x.tokenizer.set_string('')
-                self.x = x
+                self.push(self.x.acc, self.x.c_call)
                 self.set_mode(Mode.PREPROCESSOR)
 
             elif isinstance(token, tokens.MacroCallStart):
@@ -186,9 +231,7 @@ class Lexer:
                 self.set_mode(Mode.MACRO_EXPANSION)
 
             elif isinstance(token, tokens.Include):
-                x = Context(self.resolve_path(token.value))
-                self.stack.append(self.x)
-                self.x = x
+                self.push(self.resolve_path(token.value))
                 self.set_mode(Mode.PREPROCESSOR)
                 if self.in_multiline_string:
                     self.in_multiline_string += 1
@@ -197,10 +240,7 @@ class Lexer:
                 self.x.acc += token.value or '\n'
 
                 if not self.x.tokenizer:
-                    x = Context(self.x.acc, self.x.n_call)
-                    self.stack.append(self.x)
-                    self.x.acc = ''
-                    self.x = x
+                    self.push(self.x.acc, self.x.n_call)
                     if self.in_multiline_string:
                         self.set_mode(Mode.MULTILINE_STRING)
                     else:
@@ -220,11 +260,7 @@ class Lexer:
                 self.x.acc += self.resolve_macro(self.x.n_call)
                 self.x.acc += self.x.tokenizer.remaining_string()
 
-                x = Context(self.x.acc, self.x.n_call)
-                self.stack.append(self.x)
-                self.x.acc = ''
-                self.x.tokenizer.set_string('')
-                self.x = x
+                self.push(self.x.acc, self.x.n_call)
                 self.set_mode(Mode.PREPROCESSOR)
 
             return next(self)
@@ -249,24 +285,3 @@ class Lexer:
         self.set_mode(previous_mode)
         self.in_multiline_string = 0
         return tokens.MultilineString(raw_lines)
-
-    def resolve_macro(self, mc):
-        for x in reversed(self.stack + [self.x]):
-            if mc.name in x.available_macros:
-                return x.available_macros[mc.name]
-
-        if not mc.is_optional:
-            raise UndefinedMacro(mc.name)
-
-        return ''
-
-    def resolve_path(self, string):
-        parent = None
-        for x in reversed(self.stack + [self.x]):
-            if isinstance(x.line_stream.path, Path):
-                parent = x.line_stream.path.parent
-                break
-
-        if parent:
-            return parent / Path(string)
-        return Path(string)
