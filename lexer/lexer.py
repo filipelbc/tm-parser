@@ -23,7 +23,7 @@ class Mode:
     DEFAULT = 1
     MULTILINE_STRING = 2
     MACRO_DEFINITION = 3
-    MACRO_DETECTION = 4
+    PREPROCESSOR = 4
     MACRO_EXPANSION = 5
 
 
@@ -48,9 +48,10 @@ MODE_TOKENS = {
         tokens.SharpComment,
         tokens.MacroContent,
     ],
-    Mode.MACRO_DETECTION: [
+    Mode.PREPROCESSOR: [
         tokens.MacroDefinitionStart,
         tokens.MacroArgument,
+        tokens.Include,
         tokens.MacroCallStart,
         tokens.EndOfLine,
         tokens.NonMacroCall,
@@ -98,7 +99,7 @@ class Lexer:
 
     def __init__(self, source):
         self.x = Context(source)
-        self.set_mode(Mode.MACRO_DETECTION)
+        self.set_mode(Mode.PREPROCESSOR)
         self.stack = []
         self.in_multiline_string = False
 
@@ -125,7 +126,7 @@ class Lexer:
                     if self.mode == Mode.MACRO_DEFINITION:
                         self.set_mode(Mode.MACRO_DEFINITION)
                     else:
-                        self.set_mode(Mode.MACRO_DETECTION)
+                        self.set_mode(Mode.PREPROCESSOR)
                     return next(self)
 
                 if self.mode == Mode.MULTILINE_STRING:
@@ -143,7 +144,7 @@ class Lexer:
 
         print(token, self.x.c_call)
 
-        if self.mode == Mode.MACRO_DETECTION:
+        if self.mode == Mode.PREPROCESSOR:
 
             if isinstance(token, tokens.MacroDefinitionStart):
                 self.set_mode(Mode.MACRO_DEFINITION)
@@ -166,7 +167,7 @@ class Lexer:
 
                 self.add_macro(name, ''.join(raw_lines))
 
-                self.set_mode(Mode.MACRO_DETECTION)
+                self.set_mode(Mode.PREPROCESSOR)
 
             elif isinstance(token, tokens.MacroArgument):
                 self.x.acc += self.x.c_call.args[token.value]
@@ -177,11 +178,17 @@ class Lexer:
                 self.x.acc = ''
                 self.x.tokenizer.set_string('')
                 self.x = x
-                self.set_mode(Mode.MACRO_DETECTION)
+                self.set_mode(Mode.PREPROCESSOR)
 
             elif isinstance(token, tokens.MacroCallStart):
                 self.x.n_call = MacroCall(*token.value)
                 self.set_mode(Mode.MACRO_EXPANSION)
+
+            elif isinstance(token, tokens.Include):
+                x = Context(self.resolve_path(token.value))
+                self.stack.append(self.x)
+                self.x = x
+                self.set_mode(Mode.PREPROCESSOR)
 
             else:
                 self.x.acc += token.value or '\n'
@@ -215,7 +222,7 @@ class Lexer:
                 self.x.acc = ''
                 self.x.tokenizer.set_string('')
                 self.x = x
-                self.set_mode(Mode.MACRO_DETECTION)
+                self.set_mode(Mode.PREPROCESSOR)
 
             return next(self)
 
@@ -249,6 +256,17 @@ class Lexer:
             raise UndefinedMacro(mc.name)
 
         return ''
+
+    def resolve_path(self, string):
+        parent = None
+        for x in reversed(self.stack + [self.x]):
+            if isinstance(x.line_stream.path, Path):
+                parent = x.line_stream.path.parent
+                break
+
+        if parent:
+            return parent / Path(string)
+        return Path(string)
 
     def __iter__(self):
         return UntilNoneIterator(self)
