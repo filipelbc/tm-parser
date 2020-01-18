@@ -295,6 +295,19 @@ Name('or')
 EndOfLine('\\n')
 """
 
+CASE_MACRO_IN_MULTILINE_STRING = """\
+macro foo [b ${1} d]
+bar -8<-
+a ${foo "c"}
+e
+->8-
+---
+Name('bar')
+WhiteSpace(' ')
+String('a b c d\\ne\\n')
+EndOfLine('\\n')
+"""
+
 
 def with_cases(cls):
     g = globals()
