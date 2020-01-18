@@ -1,10 +1,8 @@
-import sys
 from pathlib import Path
 
 import tokens
 from tokenizer import Tokenizer
 from line_stream import LineStream
-from utils import UntilNoneIterator
 
 
 class UnexpectedEndOfInput(RuntimeError):
@@ -101,7 +99,7 @@ class Lexer:
         self.x = Context(source)
         self.set_mode(Mode.PREPROCESSOR)
         self.stack = []
-        self.in_multiline_string = False
+        self.in_multiline_string = 0
 
     def set_mode(self, mode):
         self.mode = mode
@@ -122,6 +120,9 @@ class Lexer:
                     raise UnexpectedEndOfInput()
 
                 if self.stack:
+                    if self.x.line_stream.path:
+                        if self.in_multiline_string:
+                            self.in_multiline_string -= 1
                     self.x = self.stack.pop()
                     if self.mode == Mode.MACRO_DEFINITION:
                         self.set_mode(Mode.MACRO_DEFINITION)
@@ -137,7 +138,7 @@ class Lexer:
             (line, self._location) = line_info
             self.x.tokenizer.set_string(line)
 
-        print('    ' * (len(self.stack) + 1), self.mode, self.x.tokenizer, end=' ')
+        print('    ' * (len(self.stack) + 1), self.mode, self.in_multiline_string, end=' ')
 
         (token, column) = next(self.x.tokenizer)
         self._location = self._location.move_to(column)
@@ -189,6 +190,8 @@ class Lexer:
                 self.stack.append(self.x)
                 self.x = x
                 self.set_mode(Mode.PREPROCESSOR)
+                if self.in_multiline_string:
+                    self.in_multiline_string += 1
 
             else:
                 self.x.acc += token.value or '\n'
@@ -235,16 +238,16 @@ class Lexer:
 
     def handle_multiline_string(self, previous_mode):
         self.set_mode(Mode.MULTILINE_STRING)
-        self.in_multiline_string = True
+        self.in_multiline_string = 1
 
         raw_lines = []
         (token, _) = next(self)
-        while not isinstance(token, tokens.MultilineStringEnd):
-            raw_lines.append(token.value)
+        while not (isinstance(token, tokens.MultilineStringEnd) and self.in_multiline_string == 1):
+            raw_lines.append(token.matched_string)
             (token, _) = next(self)
 
         self.set_mode(previous_mode)
-        self.in_multiline_string = False
+        self.in_multiline_string = 0
         return tokens.MultilineString(raw_lines)
 
     def resolve_macro(self, mc):
@@ -267,18 +270,3 @@ class Lexer:
         if parent:
             return parent / Path(string)
         return Path(string)
-
-    def __iter__(self):
-        return UntilNoneIterator(self)
-
-
-if __name__ == '__main__':
-    lexer = Lexer(Path(sys.argv[-1]))
-
-    t = ''
-
-    for token, location in lexer:
-        print(token)
-        t += token.value
-
-    print(t)
