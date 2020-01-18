@@ -337,7 +337,7 @@ def with_cases(cls):
             def test_case(self, case=g[c], p=c.startswith('P')):
                 self.run_case(case, p=p)
 
-            setattr(cls, 'test_' + c[5:].lower(), test_case)
+            setattr(cls, 'test_' + c.split('_', 1)[1].lower(), test_case)
     return cls
 
 
