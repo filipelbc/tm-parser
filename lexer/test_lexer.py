@@ -309,6 +309,32 @@ String('a b c d\\ne\\n')
 EndOfLine('\\n')
 """
 
+CASE_NESTED_MACRO_DEFINITION_1 = """\
+macro foo [
+  a
+  macro bar [b
+  e]
+  f
+  ${bar}
+]
+${foo}
+---
+EndOfLine('\\n')
+WhiteSpace('  ')
+Name('a')
+EndOfLine('\\n')
+WhiteSpace('  ')
+Name('f')
+EndOfLine('\\n')
+WhiteSpace('  ')
+Name('b')
+EndOfLine('\\n')
+WhiteSpace('  ')
+Name('e')
+EndOfLine('\\n')
+EndOfLine('\\n')
+"""
+
 PCASE_INCLUDE_IN_STRING = """\
 samples/a
 ---
