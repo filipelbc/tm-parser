@@ -143,18 +143,24 @@ class String(BaseTokenWithPattern):
     >>> re.match(This.pattern, r'"foo \\"bar\\" buu" "wololo"')
     <_sre.SRE_Match object; span=(0, 17), match='"foo \\\\"bar\\\\" buu"'>
 
+    >>> re.match(This.pattern, r'""')
+    <_sre.SRE_Match object; span=(0, 2), match='""'>
+
+    >>> This('""')
+    String('')
+
     >>> This('"foo"')
     String('foo')
 
-    >>> This(r'"fo\\no"')
-    String('fo\\no')
+    >>> This(r'"foo\\"bar\\"foo"')
+    String('foo"bar"foo')
     """
-    pattern = r'"(\\"|[^"])+"'
+    pattern = r'"(\\"|[^"])*"'
 
     @staticmethod
     def process(value):
         """
-        Handle escaped characters, specially the double quote.
+        Handle escaped characters, especially the double quote.
         """
         return json.loads(value)
 
