@@ -147,6 +147,30 @@ Name('d')
 EndOfLine('\\n')
 """
 
+CASE_MACRO_ARG_4 = """\
+macro foo [x ${1} y]
+a ${foo -8<-
+    b
+    "c"
+  ->8-
+  "d"
+}
+e
+---
+Name('a')
+WhiteSpace(' ')
+Name('x')
+WhiteSpace(' ')
+Name('b')
+EndOfLine('\\n')
+String('c')
+WhiteSpace(' ')
+Name('y')
+EndOfLine('\\n')
+Name('e')
+EndOfLine('\\n')
+"""
+
 CASE_MACRO_MULTILINE_1 = """\
 macro foo [
   b ${2} d

@@ -31,7 +31,7 @@ MODE_TOKENS = {
     Mode.DEFAULT: [
         tokens.SharpComment,
         tokens.String,
-        # tokens.MultilineStringStart,
+        tokens.MultilineStringStart,
         tokens.Name,
         tokens.PositiveInteger,
         tokens.EndOfLine,
@@ -167,8 +167,12 @@ class Lexer:
             elif isinstance(token, tokens.MacroArgument):
                 self.x.acc += self.x.c_call.args[token.value]
                 self.x.acc += self.x.tokenizer.remaining_string()
-                self.x.tokenizer.set_string(self.x.acc)
+
+                x = Context(self.x.acc, self.x.c_call)
+                self.stack.append(self.x)
                 self.x.acc = ''
+                self.x.tokenizer.set_string('')
+                self.x = x
                 self.set_mode(Mode.MACRO_DETECTION)
 
             elif isinstance(token, tokens.MacroCallStart):
