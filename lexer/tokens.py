@@ -45,6 +45,59 @@ class BaseTokenWithPattern(BaseToken):
     pattern = None
 
 
+def _anything_up_to(pattern):
+    """
+    Creates a pattern that matches anything up to @pattern or newline.
+
+    >>> import re; pattern = _anything_up_to('foo')
+    >>> re.match(pattern, "\\n")
+    <_sre.SRE_Match object; span=(0, 1), match='\\n'>
+
+    >>> re.match(pattern, "ab\\n")
+    <_sre.SRE_Match object; span=(0, 3), match='ab\\n'>
+
+    >>> re.match(pattern, "abfoo")
+    <_sre.SRE_Match object; span=(0, 2), match='ab'>
+
+    >>> re.match(pattern, "abfoo\\n")
+    <_sre.SRE_Match object; span=(0, 2), match='ab'>
+
+    >>> re.match(pattern, "abfoo foo")
+    <_sre.SRE_Match object; span=(0, 2), match='ab'>
+
+    >>> re.match(pattern, "abfoo foo\\n")
+    <_sre.SRE_Match object; span=(0, 2), match='ab'>
+
+    Note that the pattern will also match if @pattern is at the begining of the
+    string.
+
+    >>> re.match(pattern, "foo")
+    <_sre.SRE_Match object; span=(0, 3), match='foo'>
+
+    >>> re.match(pattern, "foo\\n")
+    <_sre.SRE_Match object; span=(0, 4), match='foo\\n'>
+
+    >>> re.match(pattern, "foo foo")
+    <_sre.SRE_Match object; span=(0, 4), match='foo '>
+
+    >>> re.match(pattern, "foo foo\\n")
+    <_sre.SRE_Match object; span=(0, 4), match='foo '>
+
+    >>> re.match(pattern, "foobar")
+    <_sre.SRE_Match object; span=(0, 6), match='foobar'>
+
+    >>> re.match(pattern, "foobar\\n")
+    <_sre.SRE_Match object; span=(0, 7), match='foobar\\n'>
+
+    >>> re.match(pattern, "foo foobar")
+    <_sre.SRE_Match object; span=(0, 4), match='foo '>
+
+    >>> re.match(pattern, "foo foobar\\n")
+    <_sre.SRE_Match object; span=(0, 4), match='foo '>
+    """
+    return r'\n|.+?(?=(' + pattern + r'|$))\n?'
+
+
 class SharpComment(BaseTokenWithPattern):
     """
     Matches a Python-style comment. Newline character is not included in the
@@ -175,6 +228,13 @@ class MultilineStringEnd(BaseTokenWithPattern):
         return None
 
 
+class MultilineStringContent(BaseTokenWithPattern):
+    """
+    Matches anything up to a MultilineStringEnd.
+    """
+    pattern = _anything_up_to(MultilineStringEnd.pattern)
+
+
 class WholeLine(BaseTokenWithPattern):
     """
     Matches everything next. Only used for testing macro expansions.
@@ -187,22 +247,6 @@ class WholeLine(BaseTokenWithPattern):
     <_sre.SRE_Match object; span=(0, 1), match='\\n'>
     """
     pattern = r'(.|\n)+$'
-
-class MultilineStringContent(BaseTokenWithPattern):
-    """
-    Matches anything up to a MultilineStringEnd.
-
-    >>> import re; This = MultilineStringContent
-    >>> re.match(This.pattern, "foo bar ->8-")
-    <_sre.SRE_Match object; span=(0, 8), match='foo bar '>
-
-    >>> re.match(This.pattern, "foo bar \\n")
-    <_sre.SRE_Match object; span=(0, 9), match='foo bar \\n'>
-
-    >>> re.match(This.pattern, "\\n")
-    <_sre.SRE_Match object; span=(0, 1), match='\\n'>
-    """
-    pattern = r'\n|.+?(?=(' + MultilineStringEnd.pattern + r'|$))\n?'
 
 
 class Name(BaseTokenWithPattern):
@@ -383,42 +427,8 @@ class MacroCallStart(BaseTokenWithPattern):
 class NonMacroCall(BaseTokenWithPattern):
     """
     Matches anything up to a MacroArgument or MacroCallStart.
-
-    >>> import re; This = NonMacroCall
-    >>> re.match(This.pattern, "foo ${bar ")
-    <_sre.SRE_Match object; span=(0, 4), match='foo '>
-
-    >>> re.match(This.pattern, "foo ${bar} ")
-    <_sre.SRE_Match object; span=(0, 4), match='foo '>
-
-    >>> re.match(This.pattern, 'foo ${bar "foo"} bar')
-    <_sre.SRE_Match object; span=(0, 4), match='foo '>
-
-    >>> re.match(This.pattern, 'foo ${bar "foo"} bar ${foo ')
-    <_sre.SRE_Match object; span=(0, 4), match='foo '>
-
-    >>> re.match(This.pattern, "foo ${bar ${bin")
-    <_sre.SRE_Match object; span=(0, 4), match='foo '>
-
-    >>> re.match(This.pattern, "foo ${1} ${bin")
-    <_sre.SRE_Match object; span=(0, 4), match='foo '>
-
-    >>> re.match(This.pattern, "foo ${1 ${bin ")
-    <_sre.SRE_Match object; span=(0, 8), match='foo ${1 '>
-
-    >>> re.match(This.pattern, "foo ${1 ${bin")
-    <_sre.SRE_Match object; span=(0, 8), match='foo ${1 '>
-
-    >>> re.match(This.pattern, "foo bar")
-    <_sre.SRE_Match object; span=(0, 7), match='foo bar'>
-
-    >>> re.match(This.pattern, "foo bar\\n")
-    <_sre.SRE_Match object; span=(0, 8), match='foo bar\\n'>
-
-    >>> re.match(This.pattern, "${bar foo")
-    <_sre.SRE_Match object; span=(0, 9), match='${bar foo'>
     """
-    pattern = r'\n|.+?(?=(' + MacroCallStart.pattern + r'|' + MacroArgument.pattern + r'|$))\n?'
+    pattern = _anything_up_to(MacroCallStart.pattern + r'|' + MacroArgument.pattern)
 
 
 class MacroCallEnd(BaseTokenWithPattern):
