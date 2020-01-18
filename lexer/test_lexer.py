@@ -109,6 +109,15 @@ WhiteSpace(' ')
 EndOfLine('\\n')
 """
 
+CASE_MACRO_OPTION = """\
+a ${?foo} b
+---
+Name('a')
+WhiteSpace('  ')
+Name('b')
+EndOfLine('\\n')
+"""
+
 CASE_MACRO_ARG_1 = """\
 macro foo [ bar ${1} ]
 a ${foo "b"} c
