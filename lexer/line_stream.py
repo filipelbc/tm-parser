@@ -65,3 +65,6 @@ class LineStream:
             return None
         self.line_num += 1
         return (line, Location(self.path, self.line_num))
+
+    def __del__(self):
+        self.file.close()
