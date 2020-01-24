@@ -33,17 +33,17 @@ class UntilNoneIterator:
         return self
 
 
-class BufferedStream:
+class RewindableStream:
     """
     Wraps a stream object, providing a way to give back an item to the stream.
     Useful for adding look-ahead functionality to an iterator.
 
-    >>> s = BufferedStream(iter(range(6)))
+    >>> s = RewindableStream(iter(range(6)))
     >>> next(s)
     0
-    >>> i = next(s); i
+    >>> next(s)
     1
-    >>> s.take_back(i)
+    >>> s.rewind(1)
     >>> next(s)
     1
     >>> next(s)
@@ -52,11 +52,11 @@ class BufferedStream:
     3
     >>> s.peek()
     3
-    >>> i = next(s); i
+    >>> next(s)
     3
-    >>> j = next(s); j
+    >>> next(s)
     4
-    >>> s.take_back(j); s.take_back(i)
+    >>> s.rewind(2)
     >>> next(s)
     3
     >>> next(s)
@@ -64,21 +64,35 @@ class BufferedStream:
     """
 
     def __init__(self, stream):
-        self.buffer = []
+        self.given = []
+        self.peeked = []
         self.stream = stream
 
     def __next__(self):
-        if self.buffer:
-            return self.buffer.pop()
-        return next(self.stream)
+        if self.peeked:
+            o = self.peeked.pop()
+        else:
+            o = next(self.stream)
 
-    def take_back(self, obj):
-        self.buffer.append(obj)
+        self.given.append(o)
+        return o
 
     def peek(self):
-        obj = next(self)
-        self.take_back(obj)
-        return obj
+        if self.peeked:
+            return self.peeked[-1]
+
+        o = next(self.stream)
+        self.peeked.append(o)
+        return o
+
+    def rewind(self, n):
+        assert len(self.given) >= n
+
+        for _ in range(n):
+            self.peeked.append(self.given.pop())
+
+    def flush(self):
+        self.given = []
 
 
 class TupleFilter:
