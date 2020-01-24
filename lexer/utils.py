@@ -79,3 +79,57 @@ class BufferedStream:
         obj = next(self)
         self.take_back(obj)
         return obj
+
+
+class TupleFilter:
+    """
+    Modifies a stream of tuples turning it into a stream of objects.  The first
+    element of the tuple is considered the main object. The remaining elements
+    become attributes of this object.
+
+    In the test below, Bar is some object; Foo is a stream of tuples whose
+    first element is of the Bar class.
+
+    >>> class Bar:
+    ...     def __init__(self, v):
+    ...         self.v = v
+    ...
+    >>> class Foo:
+    ...     s = [(Bar(1), 'b'), (Bar(2), 'd'), (Bar(3), 'f'), None]
+    ...     i = 0
+    ...     def __next__(self):
+    ...         t = self.s[self.i]
+    ...         self.i += 1
+    ...         return t
+    ...
+    >>> s = TupleFilter(Foo(), 'alt')
+    >>> i = next(s); print(i.v, i.alt)
+    1 b
+    >>> i = next(s); print(i.v, i.alt)
+    2 d
+    >>> i = next(s); print(i.v, i.alt)
+    3 f
+    >>> i = next(s); print(i)
+    None
+    """
+
+    def __init__(self, stream, *attr_names):
+        """
+        @stream The stream to be filtered
+        @attr_names The names to use for the attributes
+        """
+        self.stream = stream
+        self.attr_names = attr_names
+
+    def __next__(self):
+        tup = next(self.stream)
+        if tup is None:
+            return None
+
+        obj, *attr_values = tup
+        assert len(self.attr_names) == len(attr_values)
+
+        for name, value in zip(self.attr_names, attr_values):
+            setattr(obj, name, value)
+
+        return obj
