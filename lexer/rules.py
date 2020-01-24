@@ -38,6 +38,9 @@ class E(BottomRule):
 
     types = type(None)
 
+    def process(self, token):
+        return None
+
 
 class V(BottomRule):
     """
