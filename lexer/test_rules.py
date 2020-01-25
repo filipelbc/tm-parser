@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from utils import RewindableStream, TupleFilter
 from lexer import Lexer
-from rules import E, V, N, AndRule, OrRule
+from rules import E, V, N, C, AndRule, OrRule
 from tokens import String, PositiveInteger
 
 r_eoi = E()
@@ -10,6 +10,8 @@ r_bar = N('bar')
 r_foo = N('foo')
 r_str = V(String)
 r_int = V(PositiveInteger)
+r_ob = C('{')
+r_lte = C('<=')
 
 empty_and = AndRule()
 empty_or = OrRule()
@@ -85,6 +87,12 @@ class TestBottomRules(TestCase):
         self.assert_no_match(token_s, r_foo)
         self.assert_match(token_s, r_str, 'foo')
 
+    def test_bottom_rules_3(self):
+        token_s = RewindableStream(TupleFilter(Lexer('<='), '_location'))
+
+        self.assert_no_match(token_s, r_ob)
+        self.assert_match(token_s, r_lte, '<=')
+
     def test_and_rule(self):
         token_s = RewindableStream(TupleFilter(Lexer('foo bar'), '_location'))
 
@@ -119,3 +127,7 @@ class TestBottomRules(TestCase):
         token_s = RewindableStream(TupleFilter(Lexer('bar foo'), '_location'))
 
         self.assert_match(token_s, foo_or_bar, 'bar')
+
+        token_s = RewindableStream(TupleFilter(Lexer('wololo'), '_location'))
+
+        self.assert_no_match(token_s, foo_or_bar)

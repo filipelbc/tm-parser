@@ -25,7 +25,7 @@ class Rule(ABC):
         return False, None, 0
 
 
-class BottomRule(Rule):
+class BottomRule(Rule, ABC):
     """
     Abstract rule. Matches a single token of the specified type.
 
@@ -83,6 +83,24 @@ class N(BottomRule):
 
     def condition(self, token):
         return super().condition(token) and token.value == self.name
+
+
+class C(BottomRule):
+    """
+    This rule matches the specified sequence of caracters.
+    """
+
+    def __init__(self, chars):
+        self.chars = chars
+
+    def match(self, token_s):
+        for i, char in enumerate(self.chars):
+            t = next(token_s)
+            if not (isinstance(t, tokens.Character) and t.value == char):
+                token_s.rewind(i + 1)
+                return False, None, 0
+
+        return True, self.chars, len(self.chars)
 
 
 class AndRule(Rule):
