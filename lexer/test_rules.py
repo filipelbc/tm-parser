@@ -47,11 +47,25 @@ class FooOrBar(OrRule):
     rules = [r_foo, r_bar]
 
 
+class FooOrBar2(AndRule):
+    is_repeatable = True
+    rules = [FooOrBar()]
+
+
+class ThisFooBar(AndRule):
+    rules = [N('this'), C('{'), FooOrBar2(), C('}'), E()]
+
+
 foo_bar = FooBar()
 foo_foo = FooFoo()
 m_foo_2 = MFoo2()
 m_foo_0 = MFoo0()
 foo_or_bar = FooOrBar()
+this_foo_bar = ThisFooBar()
+
+
+def _make_token_stream(text):
+    return RewindableStream(TupleFilter(Lexer(text), '_location'))
 
 
 class TestBottomRules(TestCase):
@@ -65,7 +79,7 @@ class TestBottomRules(TestCase):
         self.assert_match(token_stream, rule, e_is_match=False)
 
     def test_bottom_rules_1(self):
-        token_s = RewindableStream(TupleFilter(Lexer('foo bar'), '_location'))
+        token_s = _make_token_stream('foo bar')
 
         self.assert_no_match(token_s, r_eoi)
         self.assert_no_match(token_s, r_bar)
@@ -77,7 +91,7 @@ class TestBottomRules(TestCase):
         self.assert_match(token_s, r_eoi)
 
     def test_bottom_rules_2(self):
-        token_s = RewindableStream(TupleFilter(Lexer('1 "foo"'), '_location'))
+        token_s = _make_token_stream('1 "foo"')
 
         self.assert_no_match(token_s, r_str)
         self.assert_match(token_s, r_int, 1)
@@ -88,46 +102,55 @@ class TestBottomRules(TestCase):
         self.assert_match(token_s, r_str, 'foo')
 
     def test_bottom_rules_3(self):
-        token_s = RewindableStream(TupleFilter(Lexer('<='), '_location'))
+        token_s = _make_token_stream('<=')
 
         self.assert_no_match(token_s, r_ob)
         self.assert_match(token_s, r_lte, '<=')
 
     def test_and_rule(self):
-        token_s = RewindableStream(TupleFilter(Lexer('foo bar'), '_location'))
+        token_s = _make_token_stream('foo bar')
 
         self.assert_match(token_s, empty_and)
         self.assert_no_match(token_s, foo_foo)
         self.assert_match(token_s, foo_bar, ('foo', 'bar'))
 
     def test_and_rule_repeatable(self):
-        token_s = RewindableStream(TupleFilter(Lexer('foo foo bar'), '_location'))
+        token_s = _make_token_stream('foo foo bar')
 
         self.assert_match(token_s, m_foo_2, (('foo',), ('foo',)))
 
-        token_s = RewindableStream(TupleFilter(Lexer('foo foo foo bar'), '_location'))
+        token_s = _make_token_stream('foo foo foo bar')
 
         self.assert_match(token_s, m_foo_2, (('foo',), ('foo',), ('foo',)))
 
     def test_and_rule_optional(self):
-        token_s = RewindableStream(TupleFilter(Lexer('bar'), '_location'))
+        token_s = _make_token_stream('bar')
 
         self.assert_match(token_s, m_foo_0, None)
 
-        token_s = RewindableStream(TupleFilter(Lexer('foo bar'), '_location'))
+        token_s = _make_token_stream('foo bar')
 
         self.assert_match(token_s, m_foo_0, (('foo',),))
 
     def test_or_rule(self):
-        token_s = RewindableStream(TupleFilter(Lexer('foo bar'), '_location'))
+        token_s = _make_token_stream('foo bar')
 
         self.assert_no_match(token_s, empty_or)
         self.assert_match(token_s, foo_or_bar, 'foo')
 
-        token_s = RewindableStream(TupleFilter(Lexer('bar foo'), '_location'))
+        token_s = _make_token_stream('bar foo')
 
         self.assert_match(token_s, foo_or_bar, 'bar')
 
-        token_s = RewindableStream(TupleFilter(Lexer('wololo'), '_location'))
+        token_s = _make_token_stream('wololo')
 
         self.assert_no_match(token_s, foo_or_bar)
+
+    def test_composed_rule(self):
+        token_s = _make_token_stream('this { no }')
+
+        self.assert_no_match(token_s, this_foo_bar)
+
+        token_s = _make_token_stream('this { foo bar }  ')
+
+        self.assert_match(token_s, this_foo_bar, ('this', '{', ('foo',), ('bar',), '}', None))
