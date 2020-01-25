@@ -1,12 +1,28 @@
+from abc import ABC, abstractmethod
+
 import tokens
 
 
-class Rule:
+class Rule(ABC):
     """
     Abstract base rule class.
     """
     is_optional = False
     is_repeatable = False
+
+    @abstractmethod
+    def match(self, token_s):
+        """
+        @token_s A rewindable stream of tokens.
+
+        Returns a tuple:
+        - bool indicating whether the rule matched;
+        - the value matched;
+        - the count of tokens consumed.
+
+        Note that if a rule does not match, it must not consume any token.
+        """
+        return False, None, 0
 
 
 class BottomRule(Rule):
