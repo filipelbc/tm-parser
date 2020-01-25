@@ -19,10 +19,10 @@ class BottomRule(Rule):
 
     types = None
 
-    def match(self, lexer):
-        if not self.condition(lexer.peek()):
-            return False, None
-        return True, self.process(next(lexer))
+    def match(self, token_s):
+        if not self.condition(token_s.peek()):
+            return False, None, 0
+        return True, self.process(next(token_s)), 1
 
     def condition(self, token):
         return isinstance(token, self.types)
@@ -76,40 +76,53 @@ class AndRule(Rule):
 
     rules = []
 
-    def match(self, lexer):
+    def match(self, token_s):
         values = []
+        count = 0
 
         for rule in self.rules:
-            is_match = self.match_once(rule, lexer, values)
+            is_match, i_count = self.match_once(rule, token_s, values)
+            count += i_count
 
             if not is_match and not rule.is_optional:
-                return False, None
+                token_s.rewind(count)
+                return False, None, 0
 
             while is_match and rule.is_repeatable:
-                is_match = self.match_once(rule, lexer, values)
+                is_match, i_count = self.match_once(rule, token_s, values)
+                count += i_count
 
-        return True, self.process(*values)
+        return True, self.process(*values), count
 
     def process(self, *values):
-        return values
+        return values or None
 
     @staticmethod
-    def match_once(rule, lexer, values):
-        drops = []
+    def match_once(rule, token_s, value_acc):
+        """
+        @value_acc Accumulator into which to put the matched value.
+
+        Returns a tuple:
+        - boolean indicating whether the rule matched
+        - the count of consumed tokens
+
+        Note that the matched value is added to an accumulator for convenience.
+        """
+        w_count = 0
 
         # ignore whitespace and line breaks
-        while isinstance(lexer.peek(), (tokens.WhiteSpace, tokens.EndOfLine)):
-            drops.append(lexer.drop())
+        while isinstance(token_s.peek(), (tokens.WhiteSpace, tokens.EndOfLine)):
+            next(token_s)
+            w_count += 1
 
-        is_match, value = rule.match(lexer)
+        is_match, value, count = rule.match(token_s)
 
         if not is_match:
-            for token in drops:
-                lexer.take_back(token)
-            return False, None
+            token_s.rewind(w_count)
+            return False, 0
 
-        values.append(value)
-        return True
+        value_acc.append(value)
+        return True, w_count + count
 
 
 class OrRule(Rule):
@@ -119,9 +132,9 @@ class OrRule(Rule):
 
     rules = []
 
-    def match(self, lexer):
+    def match(self, token_s):
         for rule in self.rules:
-            is_match, value = rule.match(lexer)
+            is_match, value, count = rule.match(token_s)
             if is_match:
-                return True, value
-        return False, None
+                return True, value, count
+        return False, None, 0
