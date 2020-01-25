@@ -26,7 +26,7 @@ class Token(ABC):
     def process(value):
         """
         Override this method to perform any necessary post-processing on the
-        value of the token.
+        matched string.
         """
         return value
 
