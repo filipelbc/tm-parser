@@ -177,6 +177,7 @@ class Lexer:
                             self.in_multiline_string -= 1
                     self.stack.pop()
                     if self.mode == Mode.MACRO_DEFINITION:
+                        # Ensure tokenizer has the correct set of possible tokens
                         self.set_mode(Mode.MACRO_DEFINITION)
                     else:
                         self.set_mode(Mode.PREPROCESSOR)
