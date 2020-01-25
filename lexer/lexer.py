@@ -28,13 +28,13 @@ class Mode:
 MODE_TOKENS = {
     Mode.DEFAULT: [
         tokens.SharpComment,
-        tokens.String,
+        tokens.DoubleQuotedString,
         tokens.MultilineStringStart,
         tokens.Name,
         tokens.PositiveInteger,
         tokens.EndOfLine,
         tokens.WhiteSpace,
-        tokens.Other,
+        tokens.Character,
     ],
     Mode.MULTILINE_STRING: [
         tokens.MultilineStringEnd,
@@ -54,7 +54,7 @@ MODE_TOKENS = {
         tokens.NonMacroCall,
     ],
     Mode.MACRO_EXPANSION: [
-        tokens.String,
+        tokens.DoubleQuotedString,
         tokens.MultilineStringStart,
         tokens.WhiteSpace,
         tokens.EndOfLine,
@@ -172,9 +172,8 @@ class Lexer:
                     raise UnexpectedEndOfInput()
 
                 if len(self.stack) > 1:
-                    if self.x.is_file:
-                        if self.in_multiline_string:
-                            self.in_multiline_string -= 1
+                    if self.x.is_file and self.in_multiline_string:
+                        self.in_multiline_string -= 1
                     self.stack.pop()
                     if self.mode == Mode.MACRO_DEFINITION:
                         # Ensure tokenizer has the correct set of possible tokens
@@ -233,7 +232,7 @@ class Lexer:
             if isinstance(token, tokens.MultilineStringStart):
                 token = self.handle_multiline_string(self.mode)
 
-            if isinstance(token, (tokens.String, tokens.MultilineString)):
+            if isinstance(token, (tokens.DoubleQuotedString, tokens.MultilineString)):
                 self.x.n_call.args.append(token.value)
 
             elif isinstance(token, tokens.MacroCallEnd):
@@ -264,7 +263,7 @@ class Lexer:
 
         self.set_mode(previous_mode)
         self.in_multiline_string = 0
-        return tokens.MultilineString(lines)
+        return tokens.MultilineString(''.join(lines))
 
     def handle_macro_definition(self, token):
         self.set_mode(Mode.MACRO_DEFINITION)

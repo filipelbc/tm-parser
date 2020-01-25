@@ -13,12 +13,12 @@ foo {
 ---
 Name('foo')
 WhiteSpace(' ')
-Other('{')
+Character('{')
 EndOfLine('\\n')
 WhiteSpace('  ')
 Name('bar')
 EndOfLine('\\n')
-Other('}')
+Character('}')
 EndOfLine('\\n')
 """
 
@@ -41,7 +41,7 @@ foo {
 ---
 Name('foo')
 WhiteSpace(' ')
-Other('{')
+Character('{')
 EndOfLine('\\n')
 WhiteSpace('  ')
 Comment(None)
@@ -51,7 +51,7 @@ Name('bar')
 WhiteSpace(' ')
 Comment(None)
 EndOfLine('\\n')
-Other('}')
+Character('}')
 EndOfLine('\\n')
 """
 

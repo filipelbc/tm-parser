@@ -1,13 +1,22 @@
 import json
 import re
+from abc import ABC
 from textwrap import dedent
 
 
-class BaseToken:
+class Token(ABC):
     """
     @value Instance attribute. The value that was matched, after being
-           post-processed.
+           processed.
+
+    @pattern Class attribute. The regular expression that matches the token
+             type. Use it to check if the next token on a string is of this
+             type.
+
+             Concrete tokens must set this to a regular expression pattern
+             string.
     """
+    pattern = None
 
     def __init__(self, matched_string):
         self.matched_string = matched_string
@@ -23,26 +32,14 @@ class BaseToken:
 
     def __repr__(self):
         """
-        >>> BaseToken('foo')
-        BaseToken('foo')
+        >>> Token('foo')
+        Token('foo')
         """
         return '%s(%r)' % (self.kind, self.value)
 
     @property
     def kind(self):
         return self.__class__.__name__
-
-
-class BaseTokenWithPattern(BaseToken):
-    """
-    @pattern Class attribute. The regular expression that matches the token
-             type. Use it to check if the next token on a string is of this
-             type.
-
-             Concrete tokens must set this to a regular expression pattern
-             string.
-    """
-    pattern = None
 
 
 def _anything_up_to(pattern):
@@ -98,7 +95,31 @@ def _anything_up_to(pattern):
     return r'\n|.+?(?=(' + pattern + r'|$))\n?'
 
 
-class SharpComment(BaseTokenWithPattern):
+class Comment(ABC):
+    """
+    Helper class for "comment" tokens.
+    """
+
+    @property
+    def kind(self):
+        return Comment.__name__
+
+    @staticmethod
+    def process(_):
+        return None
+
+
+class String(ABC):
+    """
+    Helper class for "string" tokens.
+    """
+
+    @property
+    def kind(self):
+        return String.__name__
+
+
+class SharpComment(Comment, Token):
     """
     Matches a Python-style comment. Newline character is not included in the
     match. For instance:
@@ -123,23 +144,15 @@ class SharpComment(BaseTokenWithPattern):
     """
     pattern = r'#.*'
 
-    @property
-    def kind(self):
-        return 'Comment'
 
-    @staticmethod
-    def process(value):
-        return None
-
-
-class String(BaseTokenWithPattern):
+class DoubleQuotedString(String, Token):
     """
     Matches a standard, double quoted, string. Examples:
 
     "foo bar"
     "string containing scaped double quote: \\" here"
 
-    >>> import re; This = String
+    >>> import re; This = DoubleQuotedString
     >>> re.match(This.pattern, r'"foo \\"bar\\" buu" "wololo"')
     <_sre.SRE_Match object; span=(0, 17), match='"foo \\\\"bar\\\\" buu"'>
 
@@ -165,7 +178,7 @@ class String(BaseTokenWithPattern):
         return json.loads(value)
 
 
-class MultilineString(BaseToken):
+class MultilineString(String, Token):
     """
     Token type for multiline strings. Does not have a pattern attached to it.
     Its kind is the same as the String token.
@@ -173,26 +186,22 @@ class MultilineString(BaseToken):
     >>> MultilineString("foo bar")
     String('foo bar')
 
-    >>> MultilineString(["foo bar\\n", "  buu\\n"])
+    >>> MultilineString("foo bar\\n  buu\\n")
     String('foo bar\\n  buu\\n')
 
-    >>> MultilineString(["   foo bar\\n", "  buu\\n"])
+    >>> MultilineString("   foo bar\\n  buu\\n")
     String(' foo bar\\nbuu\\n')
 
-    >>> MultilineString(["\\n foo bar\\n", "   buu\\n"])
+    >>> MultilineString("\\n foo bar\\n   buu\\n")
     String('foo bar\\n  buu\\n')
     """
 
     @staticmethod
-    def process(raw_lines):
-        return dedent(''.join(raw_lines).lstrip('\n'))
-
-    @property
-    def kind(self):
-        return String.__name__
+    def process(text):
+        return dedent(text.lstrip('\n'))
 
 
-class MultilineStringStart(BaseTokenWithPattern):
+class MultilineStringStart(Token):
     """
     Matches the start delimiter of a multiline string. It can follow another
     token in the same line, but may only be followed by whitespace.
@@ -211,7 +220,7 @@ class MultilineStringStart(BaseTokenWithPattern):
         return None
 
 
-class MultilineStringEnd(BaseTokenWithPattern):
+class MultilineStringEnd(Token):
     """
     Matches the end delimiter of a multiline string. It must be alone in the
     line.
@@ -234,14 +243,14 @@ class MultilineStringEnd(BaseTokenWithPattern):
         return None
 
 
-class MultilineStringContent(BaseTokenWithPattern):
+class MultilineStringContent(Token):
     """
     Matches anything up to a MultilineStringEnd.
     """
     pattern = _anything_up_to(MultilineStringEnd.pattern)
 
 
-class WholeLine(BaseTokenWithPattern):
+class WholeLine(Token):
     """
     Matches everything next. Only used for testing macro expansions.
 
@@ -255,9 +264,9 @@ class WholeLine(BaseTokenWithPattern):
     pattern = r'(.|\n)+$'
 
 
-class Name(BaseTokenWithPattern):
+class Name(Token):
     """
-    Matches a standard C identifier. For instance:
+    Matches a Python-style identifier. For instance:
 
         foo_bar
         _FOO_123
@@ -265,7 +274,7 @@ class Name(BaseTokenWithPattern):
     pattern = r'[a-zA-Z_]\w*'
 
 
-class PositiveInteger(BaseTokenWithPattern):
+class PositiveInteger(Token):
     """
     Matches a positive integer.
 
@@ -282,14 +291,14 @@ class PositiveInteger(BaseTokenWithPattern):
         return int(value)
 
 
-class EndOfLine(BaseTokenWithPattern):
+class EndOfLine(Token):
     """
     Matches the end of a line.
     """
     pattern = r'\n'
 
 
-class WhiteSpace(BaseTokenWithPattern):
+class WhiteSpace(Token):
     """
     Matches any positive amount of whitespace, but not the newline.
 
@@ -306,14 +315,14 @@ class WhiteSpace(BaseTokenWithPattern):
     pattern = r'\s+?(?=($|[^\s]|[\n]))'
 
 
-class Other(BaseTokenWithPattern):
+class Character(Token):
     """
     Matches any single character.
     """
     pattern = r'.'
 
 
-class MacroDefinitionStart(BaseTokenWithPattern):
+class MacroDefinitionStart(Token):
     """
     Matches the start of a macro defition. It must happen at the begining of a
     line (i.e. match only happens at position 0), although whitespace is not
@@ -336,7 +345,7 @@ class MacroDefinitionStart(BaseTokenWithPattern):
         return re.match(cls.pattern, value).group(1)
 
 
-class MacroDefinitionEnd(BaseTokenWithPattern):
+class MacroDefinitionEnd(Token):
     """
     >>> import re; This = MacroDefinitionEnd
     >>> re.match(This.pattern, "] \\n")
@@ -351,7 +360,7 @@ class MacroDefinitionEnd(BaseTokenWithPattern):
         return None
 
 
-class MacroContent(BaseTokenWithPattern):
+class MacroContent(Token):
     """
     Matches everything up to the beggining of a SharpComment or
     MacroDefinitionEnd.
@@ -369,7 +378,7 @@ class MacroContent(BaseTokenWithPattern):
     pattern = r'[^\]#]+'
 
 
-class MacroArgument(BaseTokenWithPattern):
+class MacroArgument(Token):
     """
     Matches a macro argument.
 
@@ -387,7 +396,7 @@ class MacroArgument(BaseTokenWithPattern):
         return int(value[2:-1]) - 1
 
 
-class MacroCallStart(BaseTokenWithPattern):
+class MacroCallStart(Token):
     """
     Matches the start of a macro call.
 
@@ -432,14 +441,14 @@ class MacroCallStart(BaseTokenWithPattern):
         return (name, False)
 
 
-class NonMacroCall(BaseTokenWithPattern):
+class NonMacroCall(Token):
     """
     Matches anything up to a MacroArgument or MacroCallStart.
     """
     pattern = _anything_up_to(MacroCallStart.pattern + r'|' + MacroArgument.pattern)
 
 
-class MacroCallEnd(BaseTokenWithPattern):
+class MacroCallEnd(Token):
     """
     Matches the end of a macro call.
     """
@@ -450,7 +459,7 @@ class MacroCallEnd(BaseTokenWithPattern):
         return None
 
 
-class Include(BaseTokenWithPattern):
+class Include(Token):
     """
     Matches a "include" directive.
 
@@ -463,8 +472,8 @@ class Include(BaseTokenWithPattern):
     >>> This(string)
     Include('./foo')
     """
-    pattern = r'^\s*include\s+' + String.pattern + r'\s*$'
+    pattern = r'^\s*include\s+' + DoubleQuotedString.pattern + r'\s*$'
 
     @staticmethod
     def process(value):
-        return String.process(value.strip()[7:])
+        return DoubleQuotedString.process(value.strip()[7:])
