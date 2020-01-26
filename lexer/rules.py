@@ -106,16 +106,28 @@ class C(BottomRule):
 class AndRule(Rule):
     """
     Abstract rule. Matches a sequence of rules.
-    """
 
+    @skip_tokens Tuple of token types to skip before each rule.  Normally used
+                 to make whitespace between tokens mandatory.
+
+    Matches if the rules in @rules match one after the other. If @skip_tokens
+    is set, there must be at least one token of these kinds between each rule.
+    These tokens are also skipped in the very beginning, altough their presence
+    is not mandatory.
+    """
+    skip_tokens = (
+        tokens.WhiteSpace,
+        tokens.Comment,
+        tokens.EndOfLine,
+    )
     rules = []
 
     def match(self, token_s):
         values = []
         count = 0
 
-        for rule in self.rules:
-            is_match, i_count = self.match_once(rule, token_s, values)
+        for i, rule in enumerate(self.rules):
+            is_match, i_count = self.match_once(rule, token_s, values, is_first=(i == 0))
             count += i_count
 
             if not is_match and not rule.is_optional:
@@ -131,10 +143,13 @@ class AndRule(Rule):
     def process(self, *values):
         return values or None
 
-    @staticmethod
-    def match_once(rule, token_s, value_acc):
+    @classmethod
+    def match_once(cls, rule, token_s, value_acc, is_first=False):
         """
         @value_acc Accumulator into which to put the matched value.
+
+        @is_first Indicates whether we are at the very beginning of the rule
+                  sequence, in which case skipping is optional.
 
         Returns a tuple:
         - boolean indicating whether the rule matched
@@ -142,21 +157,24 @@ class AndRule(Rule):
 
         Note that the matched value is added to an accumulator for convenience.
         """
-        w_count = 0
+        s_count = 0
 
-        # ignore whitespace and line breaks
-        while isinstance(token_s.peek(), (tokens.WhiteSpace, tokens.EndOfLine)):
+        while isinstance(token_s.peek(), cls.skip_tokens):
             next(token_s)
-            w_count += 1
+            s_count += 1
+
+        if cls.skip_tokens and s_count == 0 and not is_first:
+            token_s.rewind(s_count)
+            return False, 0
 
         is_match, value, count = rule.match(token_s)
 
         if not is_match:
-            token_s.rewind(w_count)
+            token_s.rewind(s_count)
             return False, 0
 
         value_acc.append(value)
-        return True, w_count + count
+        return True, s_count + count
 
 
 class OrRule(Rule):

@@ -56,12 +56,23 @@ class ThisFooBar(AndRule):
     rules = [N('this'), C('{'), FooOrBar2(), C('}'), E()]
 
 
+class ThisBrace(AndRule):
+    rules = [N('this'), C('{')]
+
+
+class ThisBraceNoSkip(ThisBrace):
+    skip_tokens = ()
+
+
 foo_bar = FooBar()
 foo_foo = FooFoo()
 m_foo_2 = MFoo2()
 m_foo_0 = MFoo0()
 foo_or_bar = FooOrBar()
 this_foo_bar = ThisFooBar()
+
+this_brace = ThisBrace()
+this_brace_no_skip = ThisBraceNoSkip()
 
 
 def _make_token_stream(text):
@@ -113,6 +124,15 @@ class TestBottomRules(TestCase):
         self.assert_match(token_s, empty_and)
         self.assert_no_match(token_s, foo_foo)
         self.assert_match(token_s, foo_bar, ('foo', 'bar'))
+
+    def test_and_rule_no_skip(self):
+        token_s = _make_token_stream('this {')
+        self.assert_no_match(token_s, this_brace_no_skip)
+        self.assert_match(token_s, this_brace, ('this', '{'))
+
+        token_s = _make_token_stream('this{')
+        self.assert_no_match(token_s, this_brace)
+        self.assert_match(token_s, this_brace_no_skip, ('this', '{'))
 
     def test_and_rule_repeatable(self):
         token_s = _make_token_stream('foo foo bar')
