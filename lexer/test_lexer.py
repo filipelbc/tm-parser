@@ -44,12 +44,10 @@ WhiteSpace(' ')
 Character('{')
 EndOfLine('\\n')
 WhiteSpace('  ')
-Comment(None)
 EndOfLine('\\n')
 WhiteSpace('  ')
 Name('bar')
 WhiteSpace(' ')
-Comment(None)
 EndOfLine('\\n')
 Character('}')
 EndOfLine('\\n')
@@ -182,7 +180,7 @@ a ${foo -8<-
     b
     "c"
   ->8-
-  "d"
+  "d" # x
 }
 e
 ---
@@ -236,7 +234,7 @@ EndOfLine('\\n')
 CASE_MACRO_MULTILINE_2 = """\
 macro foo [a
   b ${2}
-  d
+  d# x
   e ]
 x ${foo
     "b"

@@ -27,7 +27,6 @@ class Mode:
 
 MODE_TOKENS = {
     Mode.DEFAULT: [
-        tokens.SharpComment,
         tokens.DoubleQuotedString,
         tokens.MultilineStringStart,
         tokens.Name,
@@ -51,6 +50,7 @@ MODE_TOKENS = {
         tokens.MacroDefinitionStart,
         tokens.MacroArgument,
         tokens.MacroCallStart,
+        tokens.SharpComment,
         tokens.NonMacroCall,
     ],
     Mode.MACRO_EXPANSION: [
@@ -214,6 +214,10 @@ class Lexer:
                 self.set_mode(Mode.PREPROCESSOR)
                 if self.in_multiline_string:
                     self.in_multiline_string += 1
+
+            elif isinstance(token, tokens.SharpComment):
+                # Discard comments
+                pass
 
             else:
                 self.x.acc += token.value

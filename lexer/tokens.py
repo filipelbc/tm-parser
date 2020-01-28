@@ -142,7 +142,8 @@ class SharpComment(Comment, Token):
     >>> This('# comment text')
     Comment(None)
     """
-    pattern = r'#.*'
+    delimiter = r'#'
+    pattern = delimiter + r'.*'
 
 
 class DoubleQuotedString(String, Token):
@@ -445,7 +446,11 @@ class NonMacroCall(Token):
     """
     Matches anything up to a MacroArgument or MacroCallStart.
     """
-    pattern = _anything_up_to(MacroCallStart.pattern + r'|' + MacroArgument.pattern)
+    pattern = _anything_up_to(r'|'.join([
+        MacroCallStart.pattern,
+        MacroArgument.pattern,
+        SharpComment.delimiter,
+    ]))
 
 
 class MacroCallEnd(Token):
