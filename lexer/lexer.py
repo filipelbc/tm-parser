@@ -199,6 +199,8 @@ class Lexer:
                 self.handle_macro_definition(token)
 
             elif isinstance(token, tokens.MacroArgument):
+                if len(self.x.c_call.args) <= token.value:
+                    raise UndefinedMacroArgument(token.value)
                 self.x.acc += self.x.c_call.args[token.value]
                 self.x.acc += self.x.tokenizer.remaining_string()
 
