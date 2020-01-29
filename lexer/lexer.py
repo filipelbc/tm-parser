@@ -103,7 +103,7 @@ class Lexer:
         self.stack = []
         self.push(source)
         self.set_mode(Mode.PREPROCESSOR)
-        self.in_multiline_string = 0
+        self.in_multiline_string = False
 
     @property
     def x(self):
@@ -169,12 +169,10 @@ class Lexer:
             line_info = next(self.x.line_stream)
 
             if line_info is None:
-                if self.mode == Mode.MACRO_EXPANSION:
+                if self.mode in [Mode.MACRO_EXPANSION, Mode.MACRO_DEFINITION]:
                     raise UnexpectedEndOfInput()
 
                 if len(self.stack) > 1:
-                    if self.x.is_file and self.in_multiline_string:
-                        self.in_multiline_string -= 1
                     self.stack.pop()
                     if self.mode == Mode.MACRO_DEFINITION:
                         # Ensure tokenizer has the correct set of possible tokens
@@ -183,7 +181,7 @@ class Lexer:
                         self.set_mode(Mode.PREPROCESSOR)
                     return next(self)
 
-                if self.mode == Mode.MULTILINE_STRING:
+                if self.in_multiline_string:
                     raise UnexpectedEndOfInput()
 
                 return None
@@ -196,8 +194,15 @@ class Lexer:
 
         if self.mode == Mode.PREPROCESSOR:
 
-            if isinstance(token, tokens.MacroDefinitionStart):
+            if not self.in_multiline_string and isinstance(token, tokens.MacroDefinitionStart):
                 self.handle_macro_definition(token)
+
+            elif not self.in_multiline_string and isinstance(token, tokens.Include):
+                self.push(self.resolve_path(token.value))
+                self.set_mode(Mode.PREPROCESSOR)
+
+            elif not self.in_multiline_string and isinstance(token, tokens.SharpComment):
+                pass
 
             elif isinstance(token, tokens.MacroArgument):
                 if len(self.x.c_call.args) <= token.value:
@@ -212,18 +217,8 @@ class Lexer:
                 self.x.n_call = MacroCall(*token.value)
                 self.set_mode(Mode.MACRO_EXPANSION)
 
-            elif isinstance(token, tokens.Include):
-                self.push(self.resolve_path(token.value))
-                self.set_mode(Mode.PREPROCESSOR)
-                if self.in_multiline_string:
-                    self.in_multiline_string += 1
-
-            elif isinstance(token, tokens.SharpComment):
-                # Discard comments
-                pass
-
             else:
-                self.x.acc += token.value
+                self.x.acc += token.matched_string
 
                 if not self.x.tokenizer:
                     self.push(self.x.acc, self.x.n_call)
@@ -260,16 +255,16 @@ class Lexer:
 
     def handle_multiline_string(self, previous_mode):
         self.set_mode(Mode.MULTILINE_STRING)
-        self.in_multiline_string = 1
+        self.in_multiline_string = True
 
         lines = []
         (token, _) = next(self)
-        while not (isinstance(token, tokens.MultilineStringEnd) and self.in_multiline_string == 1):
+        while not isinstance(token, tokens.MultilineStringEnd):
             lines.append(token.matched_string)
             (token, _) = next(self)
 
         self.set_mode(previous_mode)
-        self.in_multiline_string = 0
+        self.in_multiline_string = False
         return tokens.MultilineString(''.join(lines))
 
     def handle_macro_definition(self, token):
@@ -288,7 +283,7 @@ class Lexer:
                 nesting -= 1
                 macro_value += token.matched_string
             elif token.value:
-                macro_value += token.value
+                macro_value += token.matched_string
             (token, _) = next(self)
 
         self.add_macro(macro_name, macro_value)

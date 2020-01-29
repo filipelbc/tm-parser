@@ -3,7 +3,12 @@ from unittest import TestCase
 
 from utils import UntilNoneIterator
 
-from lexer import Lexer
+from lexer import (
+    Lexer,
+    UndefinedMacro,
+    UndefinedMacroArgument,
+    UnexpectedEndOfInput,
+)
 
 
 CASE_BASIC = """\
@@ -101,13 +106,13 @@ EndOfLine('\\n')
 
 CASE_MULTILINE_STRING_2 = """\
 foo -8<- a
-  b
+  b # x
    c ->8-
 bar
 ---
 Name('foo')
 WhiteSpace(' ')
-String('a\\n b\\n  c ')
+String('a\\n b # x\\n  c ')
 EndOfLine('\\n')
 Name('bar')
 EndOfLine('\\n')
@@ -352,14 +357,14 @@ samples/a
 ---
 Name('a')
 WhiteSpace(' ')
-String('ia\\nb -8<-\\nib\\n  c\\n  c\\nib\\n->8-\\nb\\nia\\n')
+String('ia\\ninclude "b"\\nia\\n')
 EndOfLine('\\n')
 Name('a')
 EndOfLine('\\n')
 WhiteSpace('  ')
 Name('b')
 WhiteSpace(' ')
-String('ib\\n  c\\n  c\\nib\\n')
+String('ib\\ninclude "c"\\nib\\n')
 EndOfLine('\\n')
 WhiteSpace('  ')
 Name('b')
@@ -395,3 +400,22 @@ class Test(TestCase):
         else:
             tokens = self._tokenize(source)
         self.assertEqual(expected_tokens, tokens + '\n')
+
+    def assert_raises(self, exception, source):
+        with self.assertRaises(exception):
+            self._tokenize(source)
+
+    def test_undefined_macro(self):
+        self.assert_raises(UndefinedMacro, 'foo ${bar}')
+
+    def test_undefined_macro_argument(self):
+        self.assert_raises(UndefinedMacroArgument, 'macro bar [ ${2} ]\n${bar "foo"}')
+
+    def test_unexpected_end_of_input_macro_definition(self):
+        self.assert_raises(UnexpectedEndOfInput, 'macro bar [ foo\nbar')
+
+    def test_unexpected_end_of_input_macro_expansion(self):
+        self.assert_raises(UnexpectedEndOfInput, 'macro bar [ foo ]\n${bar')
+
+    def test_unexpected_end_of_input_multiline_string(self):
+        self.assert_raises(UnexpectedEndOfInput, 'foo -8<- foo\nbar')
