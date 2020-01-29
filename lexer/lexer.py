@@ -1,3 +1,4 @@
+from enum import Enum
 from pathlib import Path
 
 import tokens
@@ -17,7 +18,7 @@ class UndefinedMacroArgument(ValueError):
     pass
 
 
-class Mode:
+class Mode(Enum):
     DEFAULT = 1
     MULTILINE_STRING = 2
     MACRO_DEFINITION = 3
