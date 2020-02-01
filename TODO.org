@@ -1,0 +1,34 @@
+* Parser
+
+** Add mechanism to allow passing a context (kind of a parser state) to the rules
+
+- This must be available in the rule's ~process~ method
+
+- Write small language for testing this.
+
+** Figure out how to handle parsing error
+
+- Need to tell the user where the parsing failed.
+- Currently, the rules are "all or nothing", so we don't know how deep into
+  the rule it got before failing.
+
++ This could be dealt with when using the context.
++ or by adding an "on error" method that must be overriden.
+
+* Backlog
+
+** Lexer
+
+*** Add more token types
+
+*** Keep accurate track of token location
+
+** Code Quality
+
+*** Mark private functions as such
+
+*** Make use of type annotations
+
+*** Add or improve docstrings, specially on lexer
+
+*** Perform general code review and add comments
