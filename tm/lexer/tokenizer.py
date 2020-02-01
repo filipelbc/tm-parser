@@ -8,7 +8,7 @@ class Tokenizer:
 
     At each iteration, the list of possible tokens can be changed.
 
-    >>> from tokens import Name, DoubleQuotedString, EndOfLine, WhiteSpace
+    >>> from .tokens import Name, DoubleQuotedString, EndOfLine, WhiteSpace
     >>> t = Tokenizer()
     >>> t.set_string('bar "wololo"\\n')
     >>> t.set_possible_tokens([Name, DoubleQuotedString, EndOfLine, WhiteSpace])

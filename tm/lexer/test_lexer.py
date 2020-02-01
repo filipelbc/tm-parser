@@ -1,14 +1,16 @@
 from pathlib import Path
 from unittest import TestCase
 
-from utils import UntilNoneIterator
+from .utils import UntilNoneIterator
 
-from lexer import (
+from .lexer import (
     Lexer,
     UndefinedMacro,
     UndefinedMacroArgument,
     UnexpectedEndOfInput,
 )
+
+_module_dir = Path(__file__).parent
 
 
 CASE_BASIC = """\
@@ -353,7 +355,7 @@ EndOfLine('\\n')
 # """
 
 PCASE_INCLUDE_IN_STRING = """\
-samples/a
+test_assets/a
 ---
 Name('a')
 WhiteSpace(' ')
@@ -396,7 +398,7 @@ class Test(TestCase):
     def run_case(self, case, p):
         source, expected_tokens = case.split('---\n')
         if p:
-            tokens = self._tokenize(Path(source.strip()))
+            tokens = self._tokenize(_module_dir / Path(source.strip()))
         else:
             tokens = self._tokenize(source)
         self.assertEqual(expected_tokens, tokens + '\n')

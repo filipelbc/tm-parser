@@ -1,28 +1,45 @@
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractstaticmethod
 
-import tokens
+from ..lexer import tokens
 
 
 class Rule(ABC):
     """
     Abstract base rule class.
+
+    A rule "matches" the tokens from a token stream and "processes" the matched
+    values together with a context, returning the processed data.
     """
     is_optional = False
     is_repeatable = False
 
     @abstractmethod
-    def match(self, token_s):
+    def match(self, x, token_s):
         """
+        @x Aka. "context". Object in which to accumulate the parsed data.
+
         @token_s A rewindable stream of tokens.
 
         Returns a tuple:
         - bool indicating whether the rule matched;
-        - the value matched;
+        - the value matched after being processed;
         - the count of tokens consumed.
 
         Note that if a rule does not match, it must not consume any token.
         """
-        return False, None, 0
+        return False, self.process(x, None), 0
+
+    @abstractstaticmethod
+    def process(x, *args):
+        """
+        @args The matched values
+
+        @x Aka. "context". Object in which to accumulate the parsed data.
+
+        Override this method in order to process the matched values before
+        returning them and build up the context.
+        """
+        return None
 
 
 class BottomRule(Rule, ABC):
@@ -31,20 +48,23 @@ class BottomRule(Rule, ABC):
 
     @type Must be suitable to serve as the second argument of the isinstance()
           builtin.
+
+    Rules of this type just ignore the context and return the matched value.
     """
 
     types = None
 
-    def match(self, token_s):
+    def match(self, x, token_s):
         if not self.condition(token_s.peek()):
             return False, None, 0
-        return True, self.process(next(token_s)), 1
+        return True, self.process(x, next(token_s)), 1
 
     def condition(self, token):
         return isinstance(token, self.types)
 
-    def process(self, token):
-        return token.value
+    @staticmethod
+    def process(x, token):
+        return token.value if token else None
 
 
 class E(BottomRule):
@@ -54,9 +74,6 @@ class E(BottomRule):
 
     types = type(None)
 
-    def process(self, token):
-        return None
-
 
 class V(BottomRule):
     """
@@ -65,8 +82,8 @@ class V(BottomRule):
 
     def __init__(self, types):
         """
-        @type Must be suitable to serve as the second argument of the
-              isinstance() builtin.
+        @types Must be suitable to serve as the second argument of the
+               isinstance() builtin.
         """
         self.types = types
 
@@ -87,13 +104,13 @@ class N(BottomRule):
 
 class C(BottomRule):
     """
-    This rule matches the specified sequence of caracters.
+    This rule matches the specified sequence of characters and returns it.
     """
 
     def __init__(self, chars):
         self.chars = chars
 
-    def match(self, token_s):
+    def match(self, x, token_s):
         for i, char in enumerate(self.chars):
             t = next(token_s)
             if not (isinstance(t, tokens.Character) and t.value == char):
@@ -105,29 +122,32 @@ class C(BottomRule):
 
 class AndRule(Rule):
     """
-    Abstract rule. Matches a sequence of rules.
+    Abstract rule. Matches a sequence of rules, one after the other.
 
-    @skip_tokens Tuple of token types to skip before each rule.  Normally used
-                 to make whitespace between tokens mandatory.
+    Optionaly skips some tokens between these rules.
 
-    Matches if the rules in @rules match one after the other. If @skip_tokens
-    is set, there must be at least one token of these kinds between each rule.
-    These tokens are also skipped in the very beginning, altough their presence
-    is not mandatory.
+    @tokens_to_skip Which token types to skip before each rule. 
+
+    @is_skip_optional Whether or not skipping tokens is optional.
+
+    These two attribubes are normally used to make whitespace between tokens
+    mandatory.
     """
-    skip_tokens = (
+    tokens_to_skip = (
         tokens.WhiteSpace,
         tokens.Comment,
         tokens.EndOfLine,
     )
+    is_skip_optional = False
+
     rules = []
 
-    def match(self, token_s):
+    def match(self, x, token_s):
         values = []
         count = 0
 
         for i, rule in enumerate(self.rules):
-            is_match, i_count = self.match_once(rule, token_s, values, is_first=(i == 0))
+            is_match, i_count = self.match_once(rule, x, token_s, values, is_first=(i == 0))
             count += i_count
 
             if not is_match and not rule.is_optional:
@@ -135,16 +155,17 @@ class AndRule(Rule):
                 return False, None, 0
 
             while is_match and rule.is_repeatable:
-                is_match, i_count = self.match_once(rule, token_s, values)
+                is_match, i_count = self.match_once(rule, x, token_s, values)
                 count += i_count
 
-        return True, self.process(*values), count
+        return True, self.process(x, *values), count
 
-    def process(self, *values):
-        return values or None
+    @staticmethod
+    def process(x, *args):
+        return args or None
 
     @classmethod
-    def match_once(cls, rule, token_s, value_acc, is_first=False):
+    def match_once(cls, rule, x, token_s, value_acc, is_first=False):
         """
         @value_acc Accumulator into which to put the matched value.
 
@@ -159,15 +180,15 @@ class AndRule(Rule):
         """
         s_count = 0
 
-        while isinstance(token_s.peek(), cls.skip_tokens):
+        while isinstance(token_s.peek(), cls.tokens_to_skip):
             next(token_s)
             s_count += 1
 
-        if cls.skip_tokens and s_count == 0 and not is_first:
+        if not cls.is_skip_optional and cls.tokens_to_skip and s_count == 0 and not is_first:
             token_s.rewind(s_count)
             return False, 0
 
-        is_match, value, count = rule.match(token_s)
+        is_match, value, count = rule.match(x, token_s)
 
         if not is_match:
             token_s.rewind(s_count)
@@ -184,9 +205,13 @@ class OrRule(Rule):
 
     rules = []
 
-    def match(self, token_s):
+    def match(self, x, token_s):
         for rule in self.rules:
-            is_match, value, count = rule.match(token_s)
+            is_match, value, count = rule.match(x, token_s)
             if is_match:
-                return True, value, count
+                return True, self.process(x, value), count
         return False, None, 0
+
+    @staticmethod
+    def process(x, value):
+        return value

@@ -1,9 +1,9 @@
 from unittest import TestCase
 
-from utils import RewindableStream, TupleFilter
-from lexer import Lexer
-from rules import E, V, N, C, AndRule, OrRule
-from tokens import String, PositiveInteger
+from ..lexer import lex
+from ..lexer.tokens import String, PositiveInteger
+
+from .base_rules import E, V, N, C, AndRule, OrRule
 
 r_eoi = E()
 r_bar = N('bar')
@@ -61,7 +61,11 @@ class ThisBrace(AndRule):
 
 
 class ThisBraceNoSkip(ThisBrace):
-    skip_tokens = ()
+    tokens_to_skip = ()
+
+
+class ThisBraceOptional(ThisBrace):
+    is_skip_optional = True
 
 
 foo_bar = FooBar()
@@ -73,16 +77,13 @@ this_foo_bar = ThisFooBar()
 
 this_brace = ThisBrace()
 this_brace_no_skip = ThisBraceNoSkip()
-
-
-def _make_token_stream(text):
-    return RewindableStream(TupleFilter(Lexer(text), '_location'))
+this_brace_optional = ThisBraceOptional()
 
 
 class TestBottomRules(TestCase):
 
     def assert_match(self, token_stream, rule, e_value=None, e_is_match=True):
-        is_match, value, _ = rule.match(token_stream)
+        is_match, value, _ = rule.match(None, token_stream)
         self.assertEqual(is_match, e_is_match)
         self.assertEqual(value, e_value)
 
@@ -90,7 +91,7 @@ class TestBottomRules(TestCase):
         self.assert_match(token_stream, rule, e_is_match=False)
 
     def test_bottom_rules_1(self):
-        token_s = _make_token_stream('foo bar')
+        token_s = lex('foo bar')
 
         self.assert_no_match(token_s, r_eoi)
         self.assert_no_match(token_s, r_bar)
@@ -102,7 +103,7 @@ class TestBottomRules(TestCase):
         self.assert_match(token_s, r_eoi)
 
     def test_bottom_rules_2(self):
-        token_s = _make_token_stream('1 "foo"')
+        token_s = lex('1 "foo"')
 
         self.assert_no_match(token_s, r_str)
         self.assert_match(token_s, r_int, 1)
@@ -113,64 +114,67 @@ class TestBottomRules(TestCase):
         self.assert_match(token_s, r_str, 'foo')
 
     def test_bottom_rules_3(self):
-        token_s = _make_token_stream('<=')
+        token_s = lex('<=')
 
         self.assert_no_match(token_s, r_ob)
         self.assert_match(token_s, r_lte, '<=')
 
     def test_and_rule(self):
-        token_s = _make_token_stream('foo bar')
+        token_s = lex('foo bar')
 
         self.assert_match(token_s, empty_and)
         self.assert_no_match(token_s, foo_foo)
         self.assert_match(token_s, foo_bar, ('foo', 'bar'))
 
-    def test_and_rule_no_skip(self):
-        token_s = _make_token_stream('this {')
+    def test_and_rule_skip(self):
+        token_s = lex('this {')
         self.assert_no_match(token_s, this_brace_no_skip)
         self.assert_match(token_s, this_brace, ('this', '{'))
 
-        token_s = _make_token_stream('this{')
+        token_s = lex('this{')
         self.assert_no_match(token_s, this_brace)
         self.assert_match(token_s, this_brace_no_skip, ('this', '{'))
 
+        token_s = lex('this{')
+        self.assert_match(token_s, this_brace_optional, ('this', '{'))
+
     def test_and_rule_repeatable(self):
-        token_s = _make_token_stream('foo foo bar')
+        token_s = lex('foo foo bar')
 
         self.assert_match(token_s, m_foo_2, (('foo',), ('foo',)))
 
-        token_s = _make_token_stream('foo foo foo bar')
+        token_s = lex('foo foo foo bar')
 
         self.assert_match(token_s, m_foo_2, (('foo',), ('foo',), ('foo',)))
 
     def test_and_rule_optional(self):
-        token_s = _make_token_stream('bar')
+        token_s = lex('bar')
 
         self.assert_match(token_s, m_foo_0, None)
 
-        token_s = _make_token_stream('foo bar')
+        token_s = lex('foo bar')
 
         self.assert_match(token_s, m_foo_0, (('foo',),))
 
     def test_or_rule(self):
-        token_s = _make_token_stream('foo bar')
+        token_s = lex('foo bar')
 
         self.assert_no_match(token_s, empty_or)
         self.assert_match(token_s, foo_or_bar, 'foo')
 
-        token_s = _make_token_stream('bar foo')
+        token_s = lex('bar foo')
 
         self.assert_match(token_s, foo_or_bar, 'bar')
 
-        token_s = _make_token_stream('wololo')
+        token_s = lex('wololo')
 
         self.assert_no_match(token_s, foo_or_bar)
 
     def test_composed_rule(self):
-        token_s = _make_token_stream('this { no }')
+        token_s = lex('this { no }')
 
         self.assert_no_match(token_s, this_foo_bar)
 
-        token_s = _make_token_stream('this { foo bar }  ')
+        token_s = lex('this { foo bar }  ')
 
         self.assert_match(token_s, this_foo_bar, ('this', '{', ('foo',), ('bar',), '}', None))

@@ -49,6 +49,7 @@ class LineStream:
     """
 
     def __init__(self, source):
+        self.file = None
         if isinstance(source, str):
             self.path = None
             self.file = StringIO(source)
@@ -67,4 +68,5 @@ class LineStream:
         return (line, Location(self.path, self.line_num))
 
     def __del__(self):
-        self.file.close()
+        if self.file is not None:
+            self.file.close()

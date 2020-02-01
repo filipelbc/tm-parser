@@ -1,9 +1,9 @@
 from enum import Enum
 from pathlib import Path
 
-import tokens
-from tokenizer import Tokenizer
-from line_stream import LineStream
+from . import tokens
+from .tokenizer import Tokenizer
+from .line_stream import LineStream
 
 
 class UnexpectedEndOfInput(RuntimeError):
