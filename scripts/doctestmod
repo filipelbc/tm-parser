@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+
+# Adapted from https://github.com/Mortal/doctestmod
+
+import os
+import sys
+import importlib
+from doctest import testmod
+
+
+def import_module(name):
+    if os.path.exists(name) or '/' in name:
+        sys.path.append(os.getcwd())
+        module_name = os.path.splitext(name)[0].replace('/', '.')
+    else:
+        module_name = name
+    return importlib.import_module(module_name)
+
+
+def main(names):
+    failure_count = 0
+    test_count = 0
+
+    for name in names:
+        f, n = testmod(import_module(name))
+        failure_count += f
+        test_count += n
+
+    print('Tests: %s, Failures: %s' % (test_count, failure_count))
+    sys.exit(1 if failure_count else 0)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
