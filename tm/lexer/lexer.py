@@ -31,6 +31,8 @@ MODE_TOKENS = {
         tokens.DoubleQuotedString,
         tokens.MultilineStringStart,
         tokens.Name,
+        tokens.Datetime,
+        tokens.Timedelta,
         tokens.PositiveInteger,
         tokens.EndOfLine,
         tokens.WhiteSpace,

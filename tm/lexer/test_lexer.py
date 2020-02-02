@@ -120,6 +120,20 @@ Name('bar')
 EndOfLine('\\n')
 """
 
+CASE_DATETIME_TIMEDELTA = """\
+foo 2020-08-10
+bar 2w4min
+---
+Name('foo')
+WhiteSpace(' ')
+Datetime(datetime.datetime(2020, 8, 10, 0, 0))
+EndOfLine('\\n')
+Name('bar')
+WhiteSpace(' ')
+Timedelta(datetime.timedelta(14, 240))
+EndOfLine('\\n')
+"""
+
 CASE_MACRO_BASIC = """\
 macro foo [ bar ]
 ${foo} bin ${foo}

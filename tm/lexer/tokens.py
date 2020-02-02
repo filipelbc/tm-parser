@@ -1,6 +1,7 @@
 import json
 import re
 from abc import ABC
+from datetime import datetime, timedelta
 from textwrap import dedent
 
 
@@ -290,6 +291,56 @@ class PositiveInteger(Token):
         Converts the value from string to integer.
         """
         return int(value)
+
+
+def _cast_values(d, t=int):
+    return {k: t(v) if v else 0 for k, v in d.items()}
+
+
+class Datetime(Token):
+    """
+    Matches a date with optional time.
+
+    >>> Datetime('2018-03-24-15:40')
+    Datetime(datetime.datetime(2018, 3, 24, 15, 40))
+    >>> Datetime('2018-03-24')
+    Datetime(datetime.datetime(2018, 3, 24, 0, 0))
+    """
+    pattern = r'(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})(-(?P<hour>\d{2}):(?P<minute>\d{2}))?'
+
+    @classmethod
+    def process(cls, value):
+        m = re.match(cls.pattern, value)
+        return datetime(**_cast_values(m.groupdict()))
+
+
+class Timedelta(Token):
+    """
+    Matches a time duration value.
+
+    >>> Timedelta('1w2d13h25min')
+    Timedelta(datetime.timedelta(9, 48300))
+    >>> Timedelta('1w25min')
+    Timedelta(datetime.timedelta(7, 1500))
+    >>> Timedelta('2d13h25min')
+    Timedelta(datetime.timedelta(2, 48300))
+    >>> Timedelta('2d13h')
+    Timedelta(datetime.timedelta(2, 46800))
+    >>> Timedelta('2d')
+    Timedelta(datetime.timedelta(2))
+    >>> Timedelta('13h25min')
+    Timedelta(datetime.timedelta(0, 48300))
+    >>> Timedelta('25min')
+    Timedelta(datetime.timedelta(0, 1500))
+    >>> Timedelta('13h')
+    Timedelta(datetime.timedelta(0, 46800))
+    """
+    pattern = r'(?=\d+(w|d|h|min))((?P<weeks>\d+)w)?((?P<days>\d+)d)?((?P<hours>\d+)h)?((?P<minutes>\d+)min)?'
+
+    @classmethod
+    def process(cls, value):
+        m = re.match(cls.pattern, value)
+        return timedelta(**_cast_values(m.groupdict()))
 
 
 class EndOfLine(Token):
