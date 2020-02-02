@@ -25,35 +25,20 @@ class FooFoo(AndRule):
     rules = [r_foo, r_foo]
 
 
-class Foo2(AndRule):
-    is_repeatable = True
+class Foo(AndRule):
     rules = [r_foo]
+
+
+class Foo2(AndRule):
+    rules = [Foo(repeatable=True)]
 
 
 class Foo0(AndRule):
-    is_optional = True
-    rules = [r_foo]
-
-
-class MFoo2(AndRule):
-    rules = [Foo2()]
-
-
-class MFoo0(AndRule):
-    rules = [Foo0()]
+    rules = [Foo(optional=True)]
 
 
 class FooOrBar(OrRule):
     rules = [r_foo, r_bar]
-
-
-class FooOrBar2(AndRule):
-    is_repeatable = True
-    rules = [FooOrBar()]
-
-
-class ThisFooBar(AndRule):
-    rules = [N('this'), C('{'), FooOrBar2(), C('}'), E()]
 
 
 class ThisBrace(AndRule):
@@ -64,20 +49,19 @@ class ThisBraceNoSkip(ThisBrace):
     tokens_to_skip = ()
 
 
-class ThisBraceOptional(ThisBrace):
-    is_skip_optional = True
+class ThisFooBar(AndRule):
+    rules = [N('this'), C('{'), FooOrBar(repeatable=True), C('}'), E()]
 
 
 foo_bar = FooBar()
 foo_foo = FooFoo()
-m_foo_2 = MFoo2()
-m_foo_0 = MFoo0()
+foo_2 = Foo2()
+foo_0 = Foo0()
 foo_or_bar = FooOrBar()
-this_foo_bar = ThisFooBar()
-
 this_brace = ThisBrace()
 this_brace_no_skip = ThisBraceNoSkip()
-this_brace_optional = ThisBraceOptional()
+this_brace_optional_skip = ThisBrace(optional_skip=True)
+this_foo_bar = ThisFooBar()
 
 
 class TestBottomRules(TestCase):
@@ -136,25 +120,25 @@ class TestBottomRules(TestCase):
         self.assert_match(token_s, this_brace_no_skip, ('this', '{'))
 
         token_s = lex('this{')
-        self.assert_match(token_s, this_brace_optional, ('this', '{'))
+        self.assert_match(token_s, this_brace_optional_skip, ('this', '{'))
 
     def test_and_rule_repeatable(self):
         token_s = lex('foo foo bar')
 
-        self.assert_match(token_s, m_foo_2, (('foo',), ('foo',)))
+        self.assert_match(token_s, foo_2, (('foo',), ('foo',)))
 
         token_s = lex('foo foo foo bar')
 
-        self.assert_match(token_s, m_foo_2, (('foo',), ('foo',), ('foo',)))
+        self.assert_match(token_s, foo_2, (('foo',), ('foo',), ('foo',)))
 
     def test_and_rule_optional(self):
         token_s = lex('bar')
 
-        self.assert_match(token_s, m_foo_0, None)
+        self.assert_match(token_s, foo_0, None)
 
         token_s = lex('foo bar')
 
-        self.assert_match(token_s, m_foo_0, (('foo',),))
+        self.assert_match(token_s, foo_0, (('foo',),))
 
     def test_or_rule(self):
         token_s = lex('foo bar')
@@ -177,4 +161,4 @@ class TestBottomRules(TestCase):
 
         token_s = lex('this { foo bar }  ')
 
-        self.assert_match(token_s, this_foo_bar, ('this', '{', ('foo',), ('bar',), '}', None))
+        self.assert_match(token_s, this_foo_bar, ('this', '{', 'foo', 'bar', '}', None))

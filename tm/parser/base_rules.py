@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod, abstractstaticmethod
+from abc import ABC, abstractmethod
 
 from ..lexer import tokens
 
@@ -10,8 +10,10 @@ class Rule(ABC):
     A rule "matches" the tokens from a token stream and "processes" the matched
     values together with a context, returning the processed data.
     """
-    is_optional = False
-    is_repeatable = False
+
+    def __init__(self, optional=False, repeatable=False):
+        self.is_optional = optional
+        self.is_repeatable = repeatable
 
     @abstractmethod
     def match(self, x, token_s):
@@ -29,7 +31,8 @@ class Rule(ABC):
         """
         return False, self.process(x, None), 0
 
-    @abstractstaticmethod
+    @staticmethod
+    @abstractmethod
     def process(x, *args):
         """
         @args The matched values
@@ -53,6 +56,9 @@ class BottomRule(Rule, ABC):
     """
 
     types = None
+
+    def __init__(self):
+        super().__init__()
 
     def match(self, x, token_s):
         if not self.condition(token_s.peek()):
@@ -85,6 +91,7 @@ class V(BottomRule):
         @types Must be suitable to serve as the second argument of the
                isinstance() builtin.
         """
+        super().__init__()
         self.types = types
 
 
@@ -96,6 +103,7 @@ class N(BottomRule):
     types = tokens.Name
 
     def __init__(self, name):
+        super().__init__()
         self.name = name
 
     def condition(self, token):
@@ -108,6 +116,7 @@ class C(BottomRule):
     """
 
     def __init__(self, chars):
+        super().__init__()
         self.chars = chars
 
     def match(self, x, token_s):
@@ -126,21 +135,21 @@ class AndRule(Rule):
 
     Optionaly skips some tokens between these rules.
 
-    @tokens_to_skip Which token types to skip before each rule. 
-
-    @is_skip_optional Whether or not skipping tokens is optional.
+    @tokens_to_skip Which token types to skip before each rule.
 
     These two attribubes are normally used to make whitespace between tokens
     mandatory.
     """
-    tokens_to_skip = (
-        tokens.WhiteSpace,
-        tokens.Comment,
-        tokens.EndOfLine,
-    )
-    is_skip_optional = False
+    tokens_to_skip = (tokens.WhiteSpace, tokens.EndOfLine)
 
     rules = []
+
+    def __init__(self, optional_skip=False, **kwargs):
+        """
+        @is_skip_optional Whether or not skipping tokens is optional.
+        """
+        super().__init__(**kwargs)
+        self.is_skip_optional = optional_skip
 
     def match(self, x, token_s):
         values = []
@@ -164,8 +173,7 @@ class AndRule(Rule):
     def process(x, *args):
         return args or None
 
-    @classmethod
-    def match_once(cls, rule, x, token_s, value_acc, is_first=False):
+    def match_once(self, rule, x, token_s, value_acc, is_first=False):
         """
         @value_acc Accumulator into which to put the matched value.
 
@@ -180,11 +188,11 @@ class AndRule(Rule):
         """
         s_count = 0
 
-        while isinstance(token_s.peek(), cls.tokens_to_skip):
+        while isinstance(token_s.peek(), self.tokens_to_skip):
             next(token_s)
             s_count += 1
 
-        if not cls.is_skip_optional and cls.tokens_to_skip and s_count == 0 and not is_first:
+        if not self.is_skip_optional and self.tokens_to_skip and s_count == 0 and not is_first:
             token_s.rewind(s_count)
             return False, 0
 
