@@ -151,6 +151,14 @@ class AndRule(Rule):
         super().__init__(**kwargs)
         self.is_skip_optional = optional_skip
 
+    def __init_subclass__(cls, **kwargs):
+        """
+        Provides a rules defintion shortcut on @rules. Also provisions for
+        recursivity (see 'Self' and 'make_rule' below).
+        """
+        super().__init_subclass__(**kwargs)
+        cls.rules = [make_rule(r, k=OrRule, s=cls) for r in cls.rules]
+
     def match(self, x, token_s):
         values = []
         count = 0
@@ -213,6 +221,13 @@ class OrRule(Rule):
 
     rules = []
 
+    def __init_subclass__(cls, **kwargs):
+        """
+        Provides a rules defintion shortcut on @rules.
+        """
+        super().__init_subclass__(**kwargs)
+        cls.rules = [make_rule(r) for r in cls.rules]
+
     def match(self, x, token_s):
         for rule in self.rules:
             is_match, value, count = rule.match(x, token_s)
@@ -223,3 +238,34 @@ class OrRule(Rule):
     @staticmethod
     def process(x, value):
         return value
+
+
+class Self:
+    """
+    Marker to allow recursive rules.
+    """
+    pass
+
+
+def make_rule(r, k=AndRule, n='R', s=None):
+    """
+    Creates a new rule type from @r and returns an instance.
+
+    If @r is already a rule, it is simply returned.
+
+    If @r is a list, @k is used as base class and @n is used as type name.
+    Otherwise they are ignored.
+    """
+    if isinstance(r, list):
+        return type(n, (k,), dict(rules=r))()
+
+    elif isinstance(r, str):
+        return N(r) if r.isidentifier() else C(r)
+
+    elif issubclass(r, tokens.Token):
+        return V(r)
+
+    elif r is Self:
+        return s(optional=True, repeatable=True)
+
+    return r

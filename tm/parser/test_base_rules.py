@@ -3,7 +3,7 @@ from unittest import TestCase
 from ..lexer import lex
 from ..lexer.tokens import String, PositiveInteger
 
-from .base_rules import E, V, N, C, AndRule, OrRule
+from .base_rules import E, V, N, C, AndRule, OrRule, Self
 
 r_eoi = E()
 r_bar = N('bar')
@@ -18,15 +18,15 @@ empty_or = OrRule()
 
 
 class FooBar(AndRule):
-    rules = [r_foo, r_bar]
+    rules = ['foo', 'bar']
 
 
 class FooFoo(AndRule):
-    rules = [r_foo, r_foo]
+    rules = ['foo', 'foo']
 
 
 class Foo(AndRule):
-    rules = [r_foo]
+    rules = ['foo']
 
 
 class Foo2(AndRule):
@@ -38,11 +38,11 @@ class Foo0(AndRule):
 
 
 class FooOrBar(OrRule):
-    rules = [r_foo, r_bar]
+    rules = ['foo', 'bar']
 
 
 class ThisBrace(AndRule):
-    rules = [N('this'), C('{')]
+    rules = ['this', '{']
 
 
 class ThisBraceNoSkip(ThisBrace):
@@ -50,7 +50,11 @@ class ThisBraceNoSkip(ThisBrace):
 
 
 class ThisFooBar(AndRule):
-    rules = [N('this'), C('{'), FooOrBar(repeatable=True), C('}'), E()]
+    rules = ['this', '{', FooOrBar(repeatable=True), Self, '}']
+
+
+class Composed(AndRule):
+    rules = [ThisFooBar(), E()]
 
 
 foo_bar = FooBar()
@@ -61,7 +65,7 @@ foo_or_bar = FooOrBar()
 this_brace = ThisBrace()
 this_brace_no_skip = ThisBraceNoSkip()
 this_brace_optional_skip = ThisBrace(optional_skip=True)
-this_foo_bar = ThisFooBar()
+composed = Composed()
 
 
 class TestBottomRules(TestCase):
@@ -157,8 +161,12 @@ class TestBottomRules(TestCase):
     def test_composed_rule(self):
         token_s = lex('this { no }')
 
-        self.assert_no_match(token_s, this_foo_bar)
+        self.assert_no_match(token_s, composed)
 
         token_s = lex('this { foo bar }  ')
 
-        self.assert_match(token_s, this_foo_bar, ('this', '{', 'foo', 'bar', '}', None))
+        self.assert_match(token_s, composed, (('this', '{', 'foo', 'bar', '}'), None))
+
+        token_s = lex('this { foo this { bar } }  ')
+
+        self.assert_match(token_s, composed, (('this', '{', 'foo', ('this', '{', 'bar', '}'), '}'), None))
