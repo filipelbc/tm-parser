@@ -1,0 +1,31 @@
+project "Build XYZ" 2020-02-04 - 2020-03-04 {
+
+    now 2020-02-04
+}
+
+resource team "Team" {
+
+    resource dev_a "Dev A" {
+        email "x@foo.com"
+    }
+
+    resource dev_b "Dev B" {
+        email "y@foo.com"
+    }
+}
+
+task build "Build" {
+    allocate team
+
+    task do_x "Do X" {
+        effort 4d
+    }
+
+    task do_y "Do Y" {
+        effort 5d
+    }
+
+    task do_z "Do Z" {
+        effort 3d
+    }
+}
