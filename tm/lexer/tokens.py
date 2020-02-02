@@ -96,7 +96,7 @@ def _anything_up_to(pattern):
     return r'\n|.+?(?=(' + pattern + r'|$))\n?'
 
 
-class Comment(ABC):
+class Comment(Token, ABC):
     """
     Helper class for "comment" tokens.
     """
@@ -110,7 +110,7 @@ class Comment(ABC):
         return None
 
 
-class String(ABC):
+class String(Token, ABC):
     """
     Helper class for "string" tokens.
     """
@@ -120,7 +120,7 @@ class String(ABC):
         return String.__name__
 
 
-class SharpComment(Comment, Token):
+class SharpComment(Comment):
     """
     Matches a Python-style comment. Newline character is not included in the
     match. For instance:
@@ -147,7 +147,7 @@ class SharpComment(Comment, Token):
     pattern = delimiter + r'.*'
 
 
-class DoubleQuotedString(String, Token):
+class DoubleQuotedString(String):
     """
     Matches a standard, double quoted, string. Examples:
 
@@ -180,7 +180,7 @@ class DoubleQuotedString(String, Token):
         return json.loads(value)
 
 
-class MultilineString(String, Token):
+class MultilineString(String):
     """
     Token type for multiline strings. Does not have a pattern attached to it.
     Its kind is the same as the String token.
