@@ -11,23 +11,30 @@ from .base_rules import (
 # Variable types
 
 
-class Id(AndRule):
+class Variable(AndRule):
+
+    @staticmethod
+    def process(x, value):
+        return value
+
+
+class Id(Variable):
     rules = [tokens.Name]
 
 
-class String(AndRule):
+class String(Variable):
     rules = [tokens.String]
 
 
-class Datetime(AndRule):
+class Datetime(Variable):
     rules = [tokens.Datetime]
 
 
-class Timedelta(AndRule):
+class Timedelta(Variable):
     rules = [tokens.Timedelta]
 
 
-class DatetimeInterval(AndRule):
+class DatetimeInterval(Variable):
     rules = [
         tokens.Datetime,
         [
@@ -35,6 +42,12 @@ class DatetimeInterval(AndRule):
             ['+', Timedelta()],
         ]
     ]
+
+    @staticmethod
+    def process(x, start_date, args):
+        op, arg = args
+        end_date = arg if op == '-' else start_date + arg
+        return (start_date, end_date)
 
 
 # Attributes helper
