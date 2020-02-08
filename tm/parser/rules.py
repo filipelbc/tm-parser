@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from ..lexer import tokens
 
 from .base_rules import (
@@ -11,30 +13,45 @@ from .base_rules import (
 # Variable types
 
 
-class Variable(AndRule):
+class Id(AndRule):
+    rules = [tokens.Name]
 
     @staticmethod
     def process(x, value):
         return value
 
 
-class Id(Variable):
-    rules = [tokens.Name]
-
-
-class String(Variable):
+class String(AndRule):
     rules = [tokens.String]
 
+    @staticmethod
+    def process(x, value):
+        return value
 
-class Datetime(Variable):
-    rules = [tokens.Datetime]
 
-
-class Timedelta(Variable):
+class Timedelta(AndRule):
     rules = [tokens.Timedelta]
 
+    @staticmethod
+    def process(x, value):
+        return value
 
-class DatetimeInterval(Variable):
+
+class Datetime(OrRule):
+    rules = [
+        tokens.Datetime,
+        ['%{', tokens.Datetime, '+', Timedelta(), '}'],
+    ]
+
+    @staticmethod
+    def process(x, value):
+        if isinstance(value, datetime):
+            return value
+        _, d, _, td, _ = value
+        return d + td
+
+
+class DatetimeInterval(AndRule):
     rules = [
         tokens.Datetime,
         [
