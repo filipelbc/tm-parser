@@ -81,6 +81,10 @@ def attributes(rule_class, recursive=False):
 class Now(AndRule):
     rules = ['now', Datetime()]
 
+    @staticmethod
+    def process(x, name, value):
+        return {name: value}
+
 
 class ProjectAttributes(OrRule):
     rules = [
@@ -91,6 +95,13 @@ class ProjectAttributes(OrRule):
 class ProjectHeader(AndRule):
     rules = ['project', Id(optional=True), String(), DatetimeInterval()]
 
+    @staticmethod
+    def process(x, typ, *args):
+        if len(args) == 2:
+            args = [None] + list(args)
+        oid, title, interval = args
+        return {'type': typ, 'id': oid, 'start_date': interval[0], 'end_date': interval[1]}
+
 
 class Project(AndRule):
     rules = [
@@ -98,12 +109,22 @@ class Project(AndRule):
         *attributes(ProjectAttributes),
     ]
 
+    @staticmethod
+    def process(x, data, *args):
+        _, *attributes, _ = args
+        data['attributes'] = attributes
+        return data
+
 
 # Resource
 
 
 class Email(AndRule):
     rules = ['email', String()]
+
+    @staticmethod
+    def process(x, name, value):
+        return {name: value}
 
 
 class ResourceAttributes(OrRule):
@@ -115,12 +136,31 @@ class ResourceAttributes(OrRule):
 class ResourceHeader(AndRule):
     rules = ['resource', Id(), String()]
 
+    @staticmethod
+    def process(x, typ, oid, title):
+        return {'type': typ, 'id': oid, 'title': title}
+
+
+def _split(l, cond):
+    t, f = [], []
+    for i in l:
+        t.append(i) if cond(i) else f.append(i)
+    return t, f
+
 
 class Resource(AndRule):
     rules = [
         ResourceHeader(),
         *attributes(ResourceAttributes, recursive=True),
     ]
+
+    @staticmethod
+    def process(x, data, *args):
+        _, *values, _ = args
+        children, attributes = _split(values, lambda x: x.get('type', None) == data['type'])
+        data['attributes'] = attributes
+        data['children'] = children
+        return data
 
 
 # Task
@@ -129,9 +169,17 @@ class Resource(AndRule):
 class Allocate(AndRule):
     rules = ['allocate', Id()]
 
+    @staticmethod
+    def process(x, name, value):
+        return {name: value}
+
 
 class Effort(AndRule):
     rules = ['effort', Timedelta()]
+
+    @staticmethod
+    def process(x, name, value):
+        return {name: value}
 
 
 class TaskAttributes(OrRule):
@@ -144,12 +192,24 @@ class TaskAttributes(OrRule):
 class TaskHeader(AndRule):
     rules = ['task', Id(), String()]
 
+    @staticmethod
+    def process(x, typ, oid, title):
+        return {'type': typ, 'id': oid, 'title': title}
+
 
 class Task(AndRule):
     rules = [
         TaskHeader(),
         *attributes(TaskAttributes, recursive=True),
     ]
+
+    @staticmethod
+    def process(x, data, *args):
+        _, *values, _ = args
+        children, attributes = _split(values, lambda x: x.get('type') == data['type'])
+        data['attributes'] = attributes
+        data['children'] = children
+        return data
 
 
 # Start
@@ -168,3 +228,7 @@ class Main(AndRule):
         Properties(optional=True, repeatable=True),
         E(),
     ]
+
+    @staticmethod
+    def process(x, project, *props):
+        return {'project': project, 'properties': list(props[:-1])}
