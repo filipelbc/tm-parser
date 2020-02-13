@@ -57,9 +57,6 @@ class BottomRule(Rule, ABC):
 
     types = None
 
-    def __init__(self):
-        super().__init__()
-
     def match(self, x, token_s):
         if not self.condition(token_s.peek()):
             return False, None, 0
@@ -86,12 +83,12 @@ class V(BottomRule):
     This rule matches a token of the specified type and returns its value.
     """
 
-    def __init__(self, types):
+    def __init__(self, types, **kwargs):
         """
         @types Must be suitable to serve as the second argument of the
                isinstance() builtin.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self.types = types
 
 
@@ -102,8 +99,8 @@ class N(BottomRule):
 
     types = tokens.Name
 
-    def __init__(self, name):
-        super().__init__()
+    def __init__(self, name, **kwargs):
+        super().__init__(**kwargs)
         self.name = name
 
     def condition(self, token):
@@ -115,8 +112,8 @@ class C(BottomRule):
     This rule matches the specified sequence of characters and returns it.
     """
 
-    def __init__(self, chars):
-        super().__init__()
+    def __init__(self, chars, **kwargs):
+        super().__init__(**kwargs)
         self.chars = chars
 
     def match(self, x, token_s):
