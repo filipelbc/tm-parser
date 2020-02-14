@@ -3,7 +3,7 @@ from unittest import TestCase
 from ..lexer import lex
 from ..lexer.tokens import String, PositiveInteger
 
-from .base_rules import E, V, N, C, AndRule, OrRule, Self
+from .base_rules import E, V, N, C, AndRule, OrRule, Self, SkipBehavior
 
 r_eoi = E()
 r_bar = N('bar')
@@ -46,7 +46,11 @@ class ThisBrace(AndRule):
 
 
 class ThisBraceNoSkip(ThisBrace):
-    tokens_to_skip = ()
+    skip_behavior = SkipBehavior.NO_SKIP
+
+
+class ThisBraceOptionalSkip(ThisBrace):
+    skip_behavior = SkipBehavior.OPTIONAL
 
 
 class ThisFooBar(AndRule):
@@ -64,7 +68,7 @@ foo_0 = Foo0()
 foo_or_bar = FooOrBar()
 this_brace = ThisBrace()
 this_brace_no_skip = ThisBraceNoSkip()
-this_brace_optional_skip = ThisBrace(optional_skip=True)
+this_brace_optional_skip = ThisBraceOptionalSkip()
 composed = Composed()
 
 
@@ -124,6 +128,9 @@ class TestBottomRules(TestCase):
         self.assert_match(token_s, this_brace_no_skip, ('this', '{'))
 
         token_s = lex('this{')
+        self.assert_match(token_s, this_brace_optional_skip, ('this', '{'))
+
+        token_s = lex('this {')
         self.assert_match(token_s, this_brace_optional_skip, ('this', '{'))
 
     def test_and_rule_repeatable(self):

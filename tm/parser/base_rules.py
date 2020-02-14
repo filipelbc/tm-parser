@@ -1,3 +1,4 @@
+from enum import Flag
 from abc import ABC, abstractmethod
 
 from ..lexer import tokens
@@ -126,27 +127,42 @@ class C(BottomRule):
         return True, self.chars, len(self.chars)
 
 
+class SkipBehavior(Flag):
+    NONE = 0
+    FIRST = 1
+    OPTIONAL_FIRST = 2
+    MIDDLE = 4
+    OPTIONAL_MIDDLE = 8
+
+    NORMAL = OPTIONAL_FIRST | MIDDLE
+    OPTIONAL = OPTIONAL_FIRST | OPTIONAL_MIDDLE
+    NO_SKIP = NONE
+
+    def validate(self, first, count):
+        if first:
+            optional = self.OPTIONAL_FIRST in self
+            p = self.FIRST in self
+        else:
+            optional = self.OPTIONAL_MIDDLE in self
+            p = self.MIDDLE in self
+
+        return optional or (count == 0 and not p) or (count > 0 and p)
+
+
 class AndRule(Rule):
     """
     Abstract rule. Matches a sequence of rules, one after the other.
 
-    Optionaly skips some tokens between these rules.
+    @whitespace_tokens Which tokens types are considered whitespace and might
+                       be skipped over.
 
-    @tokens_to_skip Which token types to skip before each rule.
-
-    These two attribubes are normally used to make whitespace between tokens
-    mandatory.
+    @skip_behavior The desired behavior regarding skipping of
+                   @whitespace_tokens.
     """
-    tokens_to_skip = (tokens.WhiteSpace, tokens.EndOfLine)
+    whitespace_tokens = (tokens.WhiteSpace, tokens.EndOfLine)
+    skip_behavior = SkipBehavior.NORMAL
 
     rules = []
-
-    def __init__(self, optional_skip=False, **kwargs):
-        """
-        @is_skip_optional Whether or not skipping tokens is optional.
-        """
-        super().__init__(**kwargs)
-        self.is_skip_optional = optional_skip
 
     def __init_subclass__(cls, **kwargs):
         """
@@ -183,7 +199,7 @@ class AndRule(Rule):
         @value_acc Accumulator into which to put the matched value.
 
         @is_first Indicates whether we are at the very beginning of the rule
-                  sequence, in which case skipping is optional.
+                  sequence. Used for the whitespace skipping behavior.
 
         Returns a tuple:
         - boolean indicating whether the rule matched
@@ -193,11 +209,11 @@ class AndRule(Rule):
         """
         s_count = 0
 
-        while isinstance(token_s.peek(), self.tokens_to_skip):
+        while isinstance(token_s.peek(), self.whitespace_tokens):
             next(token_s)
             s_count += 1
 
-        if not self.is_skip_optional and self.tokens_to_skip and s_count == 0 and not is_first:
+        if not self.skip_behavior.validate(is_first, s_count):
             token_s.rewind(s_count)
             return False, 0
 
