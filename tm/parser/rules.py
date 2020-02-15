@@ -4,9 +4,11 @@ from ..lexer import tokens
 
 from .base_rules import (
     AndRule,
-    OrRule,
+    C,
     E,
+    OrRule,
     Self,
+    SkipBehavior,
 )
 
 
@@ -19,6 +21,28 @@ class Id(AndRule):
     @staticmethod
     def process(x, value):
         return value
+
+
+class RelativeId(AndRule):
+
+    class SubId(AndRule):
+        rules = ['.', tokens.Name]
+        skip_behavior = SkipBehavior.NO_SKIP
+
+        @staticmethod
+        def process(x, dot, value):
+            return value
+
+    rules = [
+        C('!', repeatable=True, optional=True),
+        tokens.Name,
+        SubId(repeatable=True, optional=True),
+    ]
+    skip_behavior = SkipBehavior.NO_SKIP
+
+    @staticmethod
+    def process(x, *args):
+        return list(args)
 
 
 class String(AndRule):
@@ -182,10 +206,19 @@ class Effort(AndRule):
         return {name: value}
 
 
+class Depends(AndRule):
+    rules = ['depends', RelativeId()]
+
+    @staticmethod
+    def process(x, name, value):
+        return {name: value}
+
+
 class TaskAttributes(OrRule):
     rules = [
         Allocate(),
         Effort(),
+        Depends(),
     ]
 
 
