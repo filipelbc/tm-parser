@@ -15,7 +15,7 @@ from .base_rules import (
 # Variable types
 
 
-class Id(AndRule):
+class Name(AndRule):
     rules = [tokens.Name]
 
     @staticmethod
@@ -23,9 +23,9 @@ class Id(AndRule):
         return value
 
 
-class RelativeId(AndRule):
+class RelativeName(AndRule):
 
-    class SubId(AndRule):
+    class SubName(AndRule):
         rules = ['.', tokens.Name]
         skip_behavior = SkipBehavior.NO_SKIP
 
@@ -36,7 +36,7 @@ class RelativeId(AndRule):
     rules = [
         C('!', repeatable=True, optional=True),
         tokens.Name,
-        SubId(repeatable=True, optional=True),
+        SubName(repeatable=True, optional=True),
     ]
     skip_behavior = SkipBehavior.NO_SKIP
 
@@ -117,14 +117,14 @@ class ProjectAttributes(OrRule):
 
 
 class ProjectHeader(AndRule):
-    rules = ['project', Id(optional=True), String(), DatetimeInterval()]
+    rules = ['project', Name(optional=True), String(), DatetimeInterval()]
 
     @staticmethod
-    def process(x, typ, *args):
-        if len(args) == 2:
+    def process(x, k, *args):
+        if len(args) == 2:  # name is optional
             args = [None] + list(args)
-        oid, title, interval = args
-        return {'type': typ, 'id': oid, 'start_date': interval[0], 'end_date': interval[1]}
+        name, title, (start_date, end_date) = args
+        return {'type': k, 'name': name, 'start_date': start_date, 'end_date': end_date}
 
 
 class Project(AndRule):
@@ -158,11 +158,11 @@ class ResourceAttributes(OrRule):
 
 
 class ResourceHeader(AndRule):
-    rules = ['resource', Id(), String()]
+    rules = ['resource', Name(), String()]
 
     @staticmethod
-    def process(x, typ, oid, title):
-        return {'type': typ, 'id': oid, 'title': title}
+    def process(x, k, name, title):
+        return {'type': k, 'name': name, 'title': title}
 
 
 def _split(l, cond):
@@ -191,7 +191,7 @@ class Resource(AndRule):
 
 
 class Allocate(AndRule):
-    rules = ['allocate', Id()]
+    rules = ['allocate', Name()]
 
     @staticmethod
     def process(x, name, value):
@@ -207,7 +207,7 @@ class Effort(AndRule):
 
 
 class Depends(AndRule):
-    rules = ['depends', RelativeId()]
+    rules = ['depends', RelativeName()]
 
     @staticmethod
     def process(x, name, value):
@@ -223,11 +223,11 @@ class TaskAttributes(OrRule):
 
 
 class TaskHeader(AndRule):
-    rules = ['task', Id(), String()]
+    rules = ['task', Name(), String()]
 
     @staticmethod
-    def process(x, typ, oid, title):
-        return {'type': typ, 'id': oid, 'title': title}
+    def process(x, k, name, title):
+        return {'type': k, 'name': name, 'title': title}
 
 
 class Task(AndRule):
