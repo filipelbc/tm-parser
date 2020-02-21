@@ -1,31 +1,65 @@
 project "Build XYZ" 2020-02-04 - 2020-03-04 {
 
-    now 2020-02-04
+  now 2020-02-04
 }
 
 resource team "Team" {
 
+  resource man "Manager" {
+    email "m@foo.com"
+  }
+
+  resource devs "Developers" {
+
     resource dev_a "Dev A" {
-        email "x@foo.com"
+      email "x@foo.com"
     }
 
     resource dev_b "Dev B" {
-        email "y@foo.com"
+      email "y@foo.com"
     }
+  }
+}
+
+task management "Management" {
+  allocate manager
 }
 
 task build "Build" {
-    allocate team
+  allocate devs
 
-    task do_x "Do X" {
-        effort 4d
+  task do_x "Do X" {
+    effort 4d
+  }
+
+  task do_y "Do Y" {
+    depends build.do_x
+    effort 5d
+  }
+
+  task do_z "Do Z" {
+    depends !do_y
+    effort 3d
+  }
+
+  task do_w "Do W" {
+
+    task part_a "W Part A" {
+      effort 4d
     }
 
-    task do_y "Do Y" {
-        effort 5d
+    task part_b "W Part B" {
+      effort 2d
+      depends !part_a
     }
+  }
+}
 
-    task do_z "Do Z" {
-        effort 3d
-    }
+task test "Test" {
+
+  task unit "Implement tests" {
+    allocate dev_b
+    depends !!build.do_z
+    effort 5d
+  }
 }
