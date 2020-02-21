@@ -1,19 +1,21 @@
 * Parser
 
-** Add mechanism to allow passing a context (kind of a parser state) to the rules
+** Add core data structures and integrate with parser
 
-- This must be available in the rule's ~process~ method
-
-- Write small language for testing this.
+- Use the context to hold the core objects and the process method to build it.
 
 ** Figure out how to handle parsing error
 
-- Need to tell the user where the parsing failed.
-- Currently, the rules are "all or nothing", so we don't know how deep into
-  the rule it got before failing.
+- It should only keep trying other possibilities as long as nothing has been
+  matched.
 
-+ This could be dealt with when using the context.
-+ or by adding an "on error" method that must be overriden.
+- When something as already been matched but matching the full rule failed,
+  it should raise an exception.
+
+- This exception must capture the expected values, and the possition of the
+  token that could not be matched.
+
+- This probably requires using the context and an ~on_error~ method.
 
 * Backlog
 
