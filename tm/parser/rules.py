@@ -107,6 +107,8 @@ class Now(AndRule):
 
     @staticmethod
     def process(x, name, value):
+        if x:
+            x.project.now = value
         return {name: value}
 
 
@@ -124,6 +126,10 @@ class ProjectHeader(AndRule):
         if len(args) == 2:  # name is optional
             args = [None] + list(args)
         name, title, (start_date, end_date) = args
+
+        if x:
+            x.init_project(name, title, start_date, end_date)
+
         return {'type': k, 'name': name, 'start_date': start_date, 'end_date': end_date}
 
 
@@ -148,6 +154,8 @@ class Email(AndRule):
 
     @staticmethod
     def process(x, name, value):
+        if x:
+            x.set_prop_attr(name, value)
         return {name: value}
 
 
@@ -162,6 +170,8 @@ class ResourceHeader(AndRule):
 
     @staticmethod
     def process(x, k, name, title):
+        if x:
+            x.add_prop(k, name, title)
         return {'type': k, 'name': name, 'title': title}
 
 
@@ -180,8 +190,10 @@ class Resource(AndRule):
 
     @staticmethod
     def process(x, data, *args):
+        if x:
+            x.prop_stack.pop()
         _, *values, _ = args
-        children, attributes = _split(values, lambda x: x.get('type', None) == data['type'])
+        children, attributes = _split(values, lambda x: x.get('type') == data['type'])
         data['attributes'] = attributes
         data['children'] = children
         return data
@@ -195,6 +207,8 @@ class Allocate(AndRule):
 
     @staticmethod
     def process(x, name, value):
+        if x:
+            x.set_prop_attr(name, value)
         return {name: value}
 
 
@@ -203,6 +217,8 @@ class Effort(AndRule):
 
     @staticmethod
     def process(x, name, value):
+        if x:
+            x.set_prop_attr(name, value)
         return {name: value}
 
 
@@ -211,6 +227,8 @@ class Depends(AndRule):
 
     @staticmethod
     def process(x, name, value):
+        if x:
+            x.set_prop_attr(name, value)
         return {name: value}
 
 
@@ -227,6 +245,8 @@ class TaskHeader(AndRule):
 
     @staticmethod
     def process(x, k, name, title):
+        if x:
+            x.add_prop(k, name, title)
         return {'type': k, 'name': name, 'title': title}
 
 
@@ -238,6 +258,8 @@ class Task(AndRule):
 
     @staticmethod
     def process(x, data, *args):
+        if x:
+            x.prop_stack.pop()
         _, *values, _ = args
         children, attributes = _split(values, lambda x: x.get('type') == data['type'])
         data['attributes'] = attributes
