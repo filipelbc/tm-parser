@@ -1,1 +1,15 @@
 #+TITLE: Task Manager
+
+This is an experiment in writing a parser for a [[https://taskjuggler.org/][Task Juggler]] like syntax.
+
+It uses Python 3.6 without any dependencies.
+
+To run the unit and doc tests, type:
+#+BEGIN_SRC shell
+make test
+#+END_SRC
+
+The following line can be used to test manually the parsing result:
+#+BEGIN_SRC shell
+./parse.py tm/parser/test_assets/simple.tjp
+#+END_SRC
